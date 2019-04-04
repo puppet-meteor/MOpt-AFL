@@ -1,0 +1,101 @@
+#!/bin/sh
+# Starts Compiz Decorator depending on the DE
+# 
+# Copyright (c) 2007 CyberOrg <cyberorg@cyberorg.info>
+# Based on compiz-manager script by Kristian Lyngstøl <kristian@bohemians.org>
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+# Contributions by: crdlb
+# Modifications by: Daniel van Vugt <daniel.van.vugt@canonical.com>
+#
+
+if [ -z "$COMPIZ_BIN_PATH" ]; then
+    COMPIZ_BIN_PATH="/usr/bin/"
+fi
+KWIN=`which kwin`
+METACITY="/usr/bin/metacity"
+
+#
+# Default to gtk/kde4-window-decorator
+#
+USE_EMERALD="no"
+DECORATOR=""
+
+#Do not leave users without decoration if decorator fails
+if [ "$DESKTOP_SESSION" = "kde" ]; then
+    FALLBACKWM="${KWIN}"
+else
+    FALLBACKWM="${METACITY}"
+fi
+FALLBACKWM_OPTIONS=" --replace"
+
+#
+# Set to yes to enable verbose
+#
+VERBOSE="yes"
+ 
+#
+# Echos the arguments if verbose
+#
+verbose()
+{
+    if [ "x$VERBOSE" = "xyes" ]; then
+        printf "$*"
+    fi
+}
+
+# Read configuration from XDG paths
+if [ -z "$XDG_CONFIG_DIRS" ]; then
+    test -f /etc/xdg/compiz/compiz-manager && . /etc/xdg/compiz/compiz-manager
+else
+    test -f $XDG_CONFIG_DIRS/compiz/compiz-manager && . $XDG_CONFIG_DIRS/compiz/compiz-manager
+fi
+
+if [ -z "$XDG_CONFIG_HOME" ]; then
+    test -f $HOME/.config/compiz/compiz-manager && . $HOME/.config/compiz/compiz-manager
+else
+    test -f $XDG_CONFIG_HOME/compiz/compiz-manager && .  $XDG_CONFIG_HOME/compiz/compiz-manager
+fi
+
+# start a decorator
+if [ -x ${COMPIZ_BIN_PATH}emerald ] && [ "$USE_EMERALD" = "yes" ]; then
+    DECORATOR=emerald
+elif [ -x ${COMPIZ_BIN_PATH}gtk-window-decorator ] && [ -n "$GNOME_DESKTOP_SESSION_ID" ]; then
+    DECORATOR=gtk-window-decorator
+elif [ -x ${COMPIZ_BIN_PATH}kde4-window-decorator ] && [ x$KDE_SESSION_VERSION = x"4" ]; then
+    DECORATOR=kde4-window-decorator
+fi
+
+# fall back to any decorator that is installed
+if [ -z "$DECORATOR" ]; then
+    verbose "Couldn't find a perfect decorator match; trying all decorators\n"
+    if [ -x ${COMPIZ_BIN_PATH}emerald ]; then
+        DECORATOR=emerald
+    elif [ -x ${COMPIZ_BIN_PATH}gtk-window-decorator ]; then
+	DECORATOR=gtk-window-decorator
+    elif [ -x ${COMPIZ_BIN_PATH}kde4-window-decorator ]; then
+	DECORATOR=kde4-window-decorator
+    fi
+fi
+
+if [ -n "$DECORATOR" ]; then
+    verbose "Starting ${DECORATOR}\n"
+    exec ${COMPIZ_BIN_PATH}$DECORATOR "$@"
+else
+    verbose "Found no decorator to start\n"
+    exec $FALLBACKWM $FALLBACKWM_OPTIONS
+fi
+

@@ -1,0 +1,132 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_usrlocal - migrate usr/local directories to maintainer scripts
+
+=cut
+
+use warnings;
+use strict;
+use Debian::Debhelper::Dh_Lib;
+use File::Find;
+use File::stat;
+
+=head1 SYNOPSIS
+
+B<dh_usrlocal> [S<I<debhelper options>>] [B<-n>]
+
+=head1 DESCRIPTION
+
+B<dh_usrlocal> is a debhelper program that can be used for building packages
+that will provide a subdirectory in F</usr/local> when installed.
+
+It finds subdirectories of F<usr/local> in the package build directory, and
+removes them, replacing them with maintainer script snippets (unless B<-n>
+is used) to create the directories at install time, and remove them when
+the package is removed, in a manner compliant with Debian policy. These
+snippets are inserted into the maintainer scripts by B<dh_installdeb>. See
+L<dh_installdeb(1)> for an explanation of debhelper maintainer script
+snippets.
+
+If the directories found in the build tree have unusual owners, groups, or
+permissions, then those values will be preserved in the directories made by
+the F<postinst> script. However, as a special exception, if a directory is owned
+by root.root, it will be treated as if it is owned by root.staff and is mode
+2775. This is useful, since that is the group and mode policy recommends for
+directories in F</usr/local>.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-n>, B<--noscripts>
+
+Do not modify F<postinst>/F<prerm> scripts.
+
+=back
+
+=head1 NOTES
+
+Note that this command is not idempotent. L<dh_prep(1)> should be called
+between invocations of this command. Otherwise, it may cause multiple
+instances of the same text to be added to maintainer scripts.
+
+=head1 CONFORMS TO
+
+Debian policy, version 2.2
+
+=cut
+
+init();
+
+# PROMISE: DH NOOP WITHOUT tmp(usr/local)
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp = tmpdir($package);
+
+	if (-d "$tmp/usr/local") {
+		my (@dirs, @justdirs);
+		find({bydepth => 1,
+		      no_chdir => 1,
+		      wanted => sub {
+			my $fn = $File::Find::name;
+			if (-d $fn) {
+				my $stat = stat $fn;
+				my $user = getpwuid $stat->uid;
+				my $group = getgrgid $stat->gid;
+				my $mode = sprintf "%04lo", ($stat->mode & 07777);
+
+				if ($stat->uid == 0 && $stat->gid == 0) {
+					$group = 'staff';
+					$mode = '2775';
+				}
+
+				$fn =~ s!^\Q$tmp\E!!;
+				return if $fn eq '/usr/local';
+				
+				# @dirs is in parents-first order for dir creation...
+				unshift @dirs, "$fn $mode $user $group";
+				# ...whereas @justdirs is depth-first for removal.
+				push @justdirs, $fn;
+				doit("rmdir $_");
+			}
+			else {
+				warning("$fn is not a directory");
+			}
+		      }}, "$tmp/usr/local");
+		doit("rmdir $tmp/usr/local");
+	
+		my $bs = "\\";     # A single plain backslash
+		my $ebs = $bs x 2; # Escape the backslash from the shell
+		# This constructs the body of a 'sed' c\ expression which
+		# is parsed by the shell in double-quotes
+		my $dirs = join("$ebs\n", sort @dirs);
+		pop @justdirs; # don't remove directories directly in /usr/local
+		my $justdirs = join("$ebs\n", reverse sort @justdirs);
+		if (! $dh{NOSCRIPTS}) { 
+			autoscript($package,"postinst", "postinst-usrlocal",
+				   "/#DIRS#/ c${ebs}\n${dirs}");
+			autoscript($package,"prerm", "prerm-usrlocal",
+				   "/#JUSTDIRS#/ c${ebs}\n${justdirs}") if length $justdirs;
+		}
+	}
+}
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Andrew Stribblehill <ads@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

@@ -1,0 +1,79 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_auto_test - automatically runs a package's test suites
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+use Debian::Debhelper::Dh_Buildsystems;
+
+=head1 SYNOPSIS
+
+B<dh_auto_test> [S<I<build system options>>] [S<I<debhelper options>>] [S<B<--> I<params>>]
+
+=head1 DESCRIPTION
+
+B<dh_auto_test> is a debhelper program that tries to automatically run a
+package's test suite. It does so by running the appropriate command for the
+build system it detects the package uses. For example, if there's a
+Makefile and it contains a B<test> or B<check> target, then this is done by
+running B<make> (or B<MAKE>, if the environment variable is set). If the test
+suite fails, the command will exit nonzero. If there's no test suite, it
+will exit zero without doing anything.
+
+This is intended to work for about 90% of packages with a test suite. If it
+doesn't work, you're encouraged to skip using B<dh_auto_test> at all, and
+just run the test suite manually.
+
+=head1 OPTIONS
+
+See L<debhelper(7)/B<BUILD SYSTEM OPTIONS>> for a list of common build
+system selection and control options.
+
+=over 4
+
+=item B<--> I<params>
+
+Pass I<params> to the program that is run, after the parameters that
+B<dh_auto_test> usually passes.
+
+=back
+
+=head1 NOTES
+
+If the B<DEB_BUILD_OPTIONS> environment variable contains B<nocheck>, no
+tests will be performed.
+
+dh_auto_test does not run the test suite when a package is being cross
+compiled.
+
+=cut
+
+if (get_buildoption("nocheck")) {
+	exit 0;
+}
+
+buildsystems_init();
+buildsystems_do();
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Joey Hess <joeyh@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

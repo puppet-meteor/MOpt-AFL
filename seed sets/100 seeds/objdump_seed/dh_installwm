@@ -1,0 +1,131 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_installwm - register a window manager
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+
+=head1 SYNOPSIS
+
+B<dh_installwm> [S<I<debhelper options>>] [B<-n>] [B<--priority=>I<n>] [S<I<wm> ...>]
+
+=head1 DESCRIPTION
+
+B<dh_installwm> is a debhelper program that is responsible for
+generating the F<postinst> and F<prerm> commands that register a window manager
+with L<update-alternatives(8)>. The window manager's man page is also 
+registered as a slave symlink (in v6 mode and up), if it is found in 
+F<usr/share/man/man1/> in the package build directory.
+
+=head1 FILES
+
+=over 4
+
+=item debian/I<package>.wm
+
+List window manager programs to register.
+
+=back
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<--priority=>I<n>
+
+Set the priority of the window manager. Default is 20, which is too low for
+most window managers; see the Debian Policy document for instructions on
+calculating the correct value.
+
+=item B<-n>, B<--noscripts>
+
+Do not modify F<postinst>/F<prerm> scripts. Turns this command into a no-op.
+
+=item I<wm> ...
+
+Window manager programs to register.
+
+=back
+
+=head1 NOTES
+
+Note that this command is not idempotent. L<dh_prep(1)> should be called
+between invocations of this command. Otherwise, it may cause multiple
+instances of the same text to be added to maintainer scripts.
+
+=cut
+
+init();
+
+if (! defined $dh{PRIORITY}) {
+        $dh{PRIORITY}=20;
+}
+
+if (@ARGV) {
+	# This is here for backwards compatibility. If the filename doesn't
+	# include a path, assume it's in /usr/bin.
+	if ($ARGV[0] !~ m:/:) {
+		$ARGV[0]="/usr/bin/$ARGV[0]";
+	}
+}
+
+# PROMISE: DH NOOP WITHOUT wm
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp=tmpdir($package);
+	my $file=pkgfile($package,"wm");
+
+	my @wm;
+	if ($file) {
+		@wm=filearray($file, '.');
+	}
+
+	if (($package eq $dh{FIRSTPACKAGE} || $dh{PARAMS_ALL}) && @ARGV) {
+		push @wm, @ARGV;
+	}
+
+	if (! $dh{NOSCRIPTS}) {
+WM:		foreach my $wm (@wm) {
+			autoscript($package,"prerm","prerm-wm","s:#WM#:$wm:g");
+
+			my $wmman;
+			if (! compat(5)) {
+				foreach my $ext (".1", ".1x") {
+					$wmman="/usr/share/man/man1/".basename($wm).$ext;
+					if (-e "$tmp$wmman" || -e "$tmp$wmman.gz") {
+						autoscript($package,"postinst","postinst-wm","s:#WM#:$wm:g;s:#WMMAN#:$wmman.gz:g;s/#PRIORITY#/$dh{PRIORITY}/g",);
+						next WM;
+					}
+				}
+			}
+			if (! compat(9)) {
+				error("no manpage found (creating an x-window-manager alternative requires a slave symlink for the manpage)");
+			}
+			# Reaching this code means a broken package will be produced.
+			autoscript($package,"postinst","postinst-wm-noman","s:#WM#:$wm:g;s/#PRIORITY#/$dh{PRIORITY}/g",);
+		}
+	}
+}
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Joey Hess <joeyh@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

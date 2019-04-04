@@ -1,0 +1,134 @@
+#!/bin/bash
+
+# Script originated from https://bbs.archlinux.org/viewtopic.php?id=107167 comment #4
+# Hacked on for Nexus 7 ~ Bryce Harrington
+
+rotate_display() {
+    output=$1
+    rotation=$2
+
+    #xrandr --output ${output} --rotate right
+    xrandr -o $(( rotation * 3 ))
+    if [ $? -ne 0 ]; then
+	echo "xrandr fail" >> /tmp/xrotate.log
+        return 1
+    fi
+
+    return 0
+}
+
+matrix_rotate() {
+    device=$1
+    rotation=$2
+
+    case ${rotation} in
+	0) MATRIX="0 -1 1  1 0 0   0 0 1"   ;;  # 90 deg to right
+	1) MATRIX="1 0 0   0 1 0   0 0 1"   ;;  # normal
+	2) MATRIX="0 1 0   1 0 -1  0 0 1"   ;;  # 90 deg to left
+    esac
+
+    xinput set-prop $device "Coordinate Transformation Matrix" $MATRIX
+    if [ $? -ne 0 ]; then
+	echo "xinput matrix transformation fail" >> /tmp/xrotate.log
+        return 1
+    fi
+
+    return 0
+}
+
+rotate_device() {
+    device=$1
+    rotation=$2
+
+    xinput set-prop $device "Evdev Axes Swap" $rotation
+    if [ $? -ne 0 ]; then
+	echo "xinput axis swap fail" >> /tmp/xrotate.log
+        return 1
+    fi
+
+    xinput set-prop $device "Evdev Axis Inversion" $rotation, $rotation
+    if [ $? -ne 0 ]; then
+	echo "xinput axis inversion fail" >> /tmp/xrotate.log
+        return 1
+    fi
+
+    return 0
+}
+
+calibrate_device() {
+    device=$1
+    rotation=$2
+
+    rangex=( 0 9640 )
+    rangey=( 0 7220 )
+
+    case ${rotation} in
+	0) cal=( ${rangey[@]} ${rangex[@]} ) ;;
+	1) cal=( ${rangex[@]} ${rangey[@]} ) ;;
+    esac
+
+    xinput set-prop $device "Evdev Axis Calibration" ${cal[@]}
+    if [ $? -ne 0 ]; then
+	echo "xinput calibration fail" >> /tmp/xrotate.log
+        return 1
+    fi
+
+    return 0
+}
+
+rotate() {
+    rotation=$1
+
+    devices=( "elan-touchscreen" )
+
+    rotate_display "LVDS-1" ${rotation}
+    for device in ${devices[@]}; do
+	#rotate_device ${device} ${rotation} \
+	#    || return 1
+	matrix_rotate ${device} ${rotation} \
+	     || return 1
+        #calibrate_device ${device} ${rotation}
+    done
+    return 0
+}
+
+# If no args given, default to 'auto'
+CMD=${1:-auto}
+
+case "${CMD}" in
+    dump)
+        echo
+        echo "### xinput list ###"
+        xinput list
+        echo
+        echo "### Xorg.0.log ###"
+        cat /var/log/Xorg.0.log
+        echo
+        echo "### dmesg ###"
+        dmesg | egrep -i "(tegra|elan|usb|input)"
+        echo
+        echo "### props ###"
+        xinput list-props "elan-touchscreen"
+	;;
+
+    portrait | normal)	rotate 0 || exit 1   ;;
+
+    landscape | right)  rotate 1 || exit 1   ;;
+
+    auto)
+        # Auto-detect rotation to use
+        xrandrout="$(xrandr)"
+        case $xrandrout in
+            *connected\ 1280x800* ) rotation=0 ;;
+            *connected\ 800x1280* ) rotation=1 ;;
+        esac
+
+        rotate ${rotation} || exit 1
+	;;
+
+    *)
+        echo "Usage:  xrotate [portrait|landscape|auto|dump]"
+	;;
+esac
+
+exit 0

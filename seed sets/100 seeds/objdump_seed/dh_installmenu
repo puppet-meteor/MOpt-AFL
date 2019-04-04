@@ -1,0 +1,108 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_installmenu - install Debian menu files into package build directories
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+
+=head1 SYNOPSIS
+
+B<dh_installmenu> [S<B<debhelper options>>] [B<-n>]
+
+=head1 DESCRIPTION
+
+B<dh_installmenu> is a debhelper program that is responsible for installing
+files used by the Debian B<menu> package into package build directories.
+
+It also automatically generates the F<postinst> and F<postrm> commands needed to
+interface with the Debian B<menu> package. These commands are inserted into
+the maintainer scripts by L<dh_installdeb(1)>.
+
+=head1 FILES
+
+=over 4
+
+=item debian/I<package>.menu
+
+Debian menu files, installed into usr/share/menu/I<package> in the package
+build directory. See L<menufile(5)> for its format.
+
+=item debian/I<package>.menu-method
+
+Debian menu method files, installed into etc/menu-methods/I<package>
+in the package build directory.
+
+=back
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-n>, B<--noscripts>
+
+Do not modify F<postinst>/F<postrm> scripts.
+
+=back
+
+=cut
+
+init();
+
+# PROMISE: DH NOOP WITHOUT menu menu-method
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp=tmpdir($package);
+	my $menu=pkgfile($package,"menu");
+	my $menu_method=pkgfile($package,"menu-method");
+	
+	if ($menu ne '') {
+		if (! -d "$tmp/usr/share/menu") {
+			install_dir("$tmp/usr/share/menu");
+		}
+		install_file($menu,"$tmp/usr/share/menu/$package");
+
+		# Add the scripts if a menu-method file doesn't exist.
+		# The scripts for menu-method handle everything these do, too.
+		if ($menu_method eq "" && ! $dh{NOSCRIPTS}) {
+			autoscript($package,"postinst","postinst-menu");
+			autoscript($package,"postrm","postrm-menu")
+		}
+	}
+
+	if ($menu_method ne '') {
+		if (!-d "$tmp/etc/menu-methods") {
+			install_dir("$tmp/etc/menu-methods");
+		}
+		install_file($menu_method,"$tmp/etc/menu-methods/$package");
+
+		if (! $dh{NOSCRIPTS}) {
+			autoscript($package,"postinst","postinst-menu-method","s/#PACKAGE#/$package/g");
+			autoscript($package,"postrm","postrm-menu-method","s/#PACKAGE#/$package/g");
+		}
+	}
+}
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+L<update-menus(1)>
+L<menufile(5)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Joey Hess <joeyh@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

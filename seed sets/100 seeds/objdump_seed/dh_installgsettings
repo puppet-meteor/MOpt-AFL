@@ -1,0 +1,106 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_installgsettings - install GSettings overrides and set dependencies
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+
+=head1 SYNOPSIS
+
+B<dh_installgsettings> [S<I<debhelper options>>] [B<--priority=<number>>]
+
+=head1 DESCRIPTION
+
+B<dh_installgsettings> is a debhelper program that is responsible for installing
+GSettings override files and generating appropriate dependencies on the
+GSettings backend.
+
+The dependency on the backend will be generated in B<${misc:Depends}>.
+
+=head1 FILES
+
+=over 4
+
+=item debian/I<package>.gsettings-override
+
+Installed into usr/share/glib-2.0/schemas/10_I<package>.gschema.override in
+the package build directory, with "I<package>" replaced by the package name.
+
+The format of the file is the following:
+
+  [org.gnome.mypackage]
+  boolean-setting=true
+  string-setting='string'
+  ...
+
+=back
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<--priority> I<priority>
+
+Use I<priority> (which should be a 2-digit number) as the override
+priority instead of 10. Higher values than ten can be used by 
+derived distributions (20), blend distributions (50), or site-specific
+packages (90).
+
+=cut
+
+init();
+
+my $priority=10;
+if (defined $dh{PRIORITY}) {
+	$priority=$dh{PRIORITY};
+}
+
+# PROMISE: DH NOOP WITHOUT gsettings-override tmp(usr/share/glib-2.0/schemas)
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp=tmpdir($package);
+
+	my $gsettings_schemas_dir = "$tmp/usr/share/glib-2.0/schemas/";
+
+	my $override = pkgfile($package,"gsettings-override");
+	if ($override ne '') {
+		install_dir($gsettings_schemas_dir);
+		install_file($override,
+					 "$gsettings_schemas_dir/${priority}_$package.gschema.override");
+	}
+
+	if (-d "$gsettings_schemas_dir") {
+		# Get a list of the schemas
+		my $schemas = `find $gsettings_schemas_dir -type f \\( -name \\*.xml -o -name \\*.override \\) -printf '%P '`;
+		if ($schemas ne '') {
+			addsubstvar($package, "misc:Depends", "dconf-gsettings-backend | gsettings-backend");
+		}
+	}
+}
+
+=back
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Laurent Bigonville <bigon@debian.org>,
+Josselin Mouette <joss@debian.org>
+
+=cut
+
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

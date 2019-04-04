@@ -1,0 +1,128 @@
+#!/usr/bin/perl -w
+
+# Written by Bryan Henderson
+# Contributed to the public domain.
+
+
+use strict;
+use English;
+use Getopt::Long;
+use File::Temp "tempfile";
+use File::Spec;
+use File::Copy;
+use Fcntl ":seek";
+
+my ($TRUE, $FALSE) = (1,0);
+
+my ($opt_center, $opt_meancolor, $opt_meanpixel, $opt_floyd,
+    $opt_spreadbrightness, $opt_spreadluminosity, $opt_mapfile);
+
+my $result = GetOptions(
+                        "center" => \$opt_center,
+                        "meancolor" => \$opt_meancolor,
+                        "meanpixel" => \$opt_meanpixel,
+                        "spreadbrightness" => \$opt_spreadbrightness,
+                        "spreadluminosity" => \$opt_spreadluminosity,
+                        "floyd|fs!" => \$opt_floyd,
+                        );
+
+if (@ARGV > 2) {
+    print(STDERR "This program takes at most 2 arguments.  You specified ",
+          0+@ARGV, "\n");
+    exit(1);
+} 
+if (@ARGV < 1) {
+    print(STDERR "You must specify the number of colors as an argument.\n");
+    exit(1);
+}
+my $infile;
+my $ncolors = $ARGV[0];
+
+if (@ARGV > 1) {
+    $infile = $ARGV[1];
+} else {
+    $infile = "-";
+}
+
+my $averageOpt;
+if (defined($opt_meanpixel)) {
+    $averageOpt = "-meanpixel";
+} elsif (defined($opt_meancolor)) {
+    $averageOpt = "-meancolor";
+} else {
+    $averageOpt = "-center";
+}
+
+my $spreadOpt;
+if (defined($opt_spreadluminosity)) {
+    $spreadOpt = "-spreadluminosity";
+} else {
+    $spreadOpt = "-spreadbrightness";
+}
+
+my ($mapfileFh, $mapfileSpec) = tempfile("pnmquantMapXXXX", 
+                                         SUFFIX => ".pnm",
+                                         UNLINK => $TRUE,
+                                         DIR => File::Spec->tmpdir());
+
+# We'd like just to connect the file handle $mapfileFh to STDOUT, but
+# we can't figure out the Perl incantation to make that happen.
+# close($mapfileFh);
+
+open(OLDOUT, ">&STDOUT");
+select(OLDOUT);  # avoids Perl bug where it says we never use STDOUT 
+open(STDOUT, ">", $mapfileSpec);
+
+&inputSTDIN($infile);
+
+my $maprc = system("pnmcolormap", $ncolors, $averageOpt, $spreadOpt);
+open(STDOUT, ">&OLDOUT");
+
+seek(STDIN, 0, SEEK_SET);
+
+if ($maprc != 0) {
+    print(STDERR "pnmcolormap failed, rc=$maprc\n");
+    exit(1);
+} else {
+    my $floydOpt = $opt_floyd ? "-floyd" : "-nofloyd";
+
+    my $remaprc = system("pnmremap", 
+                         "-mapfile=$mapfileSpec", $floydOpt);
+
+    if ($remaprc != 0) {
+        print(STDERR "pnmremap failed, rc=$remaprc\n");
+        exit(1);
+    }
+}
+
+
+sub inputSTDIN {
+	my $inputfile = shift;
+
+	if ($inputfile eq "-") {
+		unless (seek(STDIN, 0, SEEK_SET)) {
+			my ($fileFh, $fileSpec) = tempfile("pnmquantSTDINXXXX",
+			             		                SUFFIX => ".pnm",
+					 							UNLINK => $TRUE,
+												DIR => File::Spec->tmpdir());
+			while (<STDIN>) {
+				print($fileFh $_);
+			}
+		
+			unless (seek($fileFh, 0, SEEK_SET)) {
+				print(STDERR "pnmquant failed, seek of temporary input file failed! Errno = $ERRNO\n");
+				exit(1);
+			}
+			
+			*FILEFH = *$fileFh;
+			open(STDIN, "<&FILEFH");
+			tell(FILEFH);
+		}
+	}
+	else {
+		unless (open(STDIN, "<", $inputfile)) {
+			print(STDERR "pnmremap failed, can't open $inputfile: $!\n");
+			exit(1);
+		}
+	}
+}

@@ -1,0 +1,88 @@
+#!/bin/sh
+#
+# Returns 0 (true) if on AC power
+#         1 (false) if not on AC power
+#         255 (false) if can't tell
+#
+# Example shell script:
+#     if on_ac_power; then
+#       echo We're on AC power
+#     else
+#       echo Can't say we're on AC power
+#     fi
+
+set -e
+
+# sysfs
+#
+# This algorithm is complicated by the possibility of multiple AC
+# adapters.  We scan the ac_adapter/power_supply directory looking for adapters
+# that have known states.  If any adapter is on-line, we return 0.  If
+# no adapters are on-line but one or more are off-line, we return 1.
+#
+OFF_LINE_P=no
+
+if [ -d /sys/class/power_supply/ ]; then
+    for FN in /sys/class/power_supply/*; do
+	if test -d "${FN}" && test -r "${FN}/type"; then
+	    type="$(cat ${FN}/type)"
+	    if test "x${type}" = "xMains"; then
+		if [ -r "${FN}/online" ]; then
+		    online="$(cat ${FN}/online)"
+		    [ "$online" = 1 ] && exit 0
+		    [ "$online" = 0 ] && OFF_LINE_P=yes
+		fi
+	    fi
+	fi
+    done
+    [ "${OFF_LINE_P}" = "yes" ] && exit 1
+fi
+
+# ACPI
+# same algorithm as above, a fallback only when the generic sysfs interface
+# is not available (old kernels only)
+if /sbin/acpi_available && [ -d /proc/acpi/ac_adapter ]; then
+    for FN in /proc/acpi/ac_adapter/*; do
+	if [ -d "${FN}" ]; then
+	    if [ -r "${FN}/state" ]; then
+		grep --quiet on-line "${FN}/state" && exit 0
+		grep --quiet off-line "${FN}/state" && OFF_LINE_P=yes
+	    elif [ -r "${FN}/status" ]; then
+		grep --quiet on-line "${FN}/status" && exit 0
+		grep --quiet off-line "${FN}/status" && OFF_LINE_P=yes
+	    fi
+	fi
+    done
+    [ "${OFF_LINE_P}" = "yes" ] && exit 1
+fi
+
+# PMU
+if [ -r /proc/pmu/info ]; then
+    exec awk </proc/pmu/info '
+	BEGIN { FS=":"; ret = 255 }
+	/^AC Power.*1$/ { ret = 0; exit }
+	/^AC Power.*0$/ { ac = 1 }
+        /^Battery.*/ {
+                if ($2 ~/0/ && ac == 1)
+                        ret = 0
+                else
+                        ret = 1
+                exit }
+	END { exit ret }
+    '
+fi
+
+# APM
+if [ -r /proc/apm ] && /sbin/apm_available; then
+    exec awk </proc/apm '
+	BEGIN { ret = 255 }
+	/^[0-9.a-zA-Z]* [0-9.]* 0x.. 0x../ {
+		if ($4 == "0x01") { ret = 0; exit }
+		else if ($4 == "0x00") { ret = 1; exit }
+	}
+	END { exit ret }
+    '
+fi
+
+# nothing is available
+exit 255

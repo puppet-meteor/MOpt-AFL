@@ -1,0 +1,73 @@
+#!/usr/bin/perl -wl
+#
+# written by Arjen Bax
+#
+# Contributed to the public domain. This software is provided in
+# the hope that it will be useful, but without warranty.
+
+
+use strict;
+use Getopt::Long;
+use File::Temp "tempdir";
+
+my ($FALSE, $TRUE) = (0,1);
+
+(my $myname = $0) =~ s#\A.*/##;
+
+my ($Twid, $Thgt, $tmpdir, $verbose);
+
+# set defaults
+$Twid = 600;
+$Thgt = 8;
+$verbose = $FALSE;
+
+(my $usage = <<EOD ) =~ s/^\t//mg;
+	Usage: $myname [ options ] color ...
+
+	Creates a color bar with smoothly changing colors.
+
+	Options:
+	    -width	width of the color bar (default $Twid)
+	    -height	height of the color bar (default $Thgt)
+	    -tmpdir	working directory (default envar TMPDIR or \/tmp)
+	    -verbose	echo shell commands to STDERR
+EOD
+
+GetOptions("width=i" => \$Twid,
+           "height=i" => \$Thgt,
+           "tmpdir=s" => \$tmpdir,
+           "verbose!" => \$verbose);
+
+die "invalid width and/or height\n" unless $Twid >= 1 && $Thgt >= 1;
+
+my $verboseCommand = $verbose ? "set -x;" : "";
+
+if (@ARGV < 1) {
+    die("You must specify at least one color as an argument");
+}
+
+my $numcol = scalar @ARGV;
+push @ARGV, $ARGV[0];
+
+my $tempdir = tempdir("$myname.XXXXXXX", CLEANUP => 1)
+    || die "Cant create tmpdir"; #219019
+my @outlist = ();
+my $n = 0;
+
+while (@ARGV >= 2) {
+    push @outlist, my $outfile = sprintf "%s/%03u.ppm", $tmpdir, $n;
+    my $w = int(($Twid-1)/$numcol)+1;
+    0 == system qq{$verboseCommand pgmramp -lr $w $Thgt | pgmtoppm "$ARGV[0]-$ARGV[1]" >$outfile}
+	or exit 1;
+    $Twid -= $w;
+    $numcol--;
+    $n++;
+    shift @ARGV;
+}
+
+0 == system qq{$verboseCommand pnmcat -lr @outlist}
+    or exit 1;
+
+exit 0;
+
+# no need to delete anything, as this is automatically done via tempdir

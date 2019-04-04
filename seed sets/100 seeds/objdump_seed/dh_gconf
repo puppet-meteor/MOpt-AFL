@@ -1,0 +1,115 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_gconf - install GConf defaults files and register schemas
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+
+=head1 SYNOPSIS
+
+B<dh_gconf> [S<I<debhelper options>>] [B<--priority=>I<priority>]
+
+=head1 DESCRIPTION
+
+B<dh_gconf> is a debhelper program that is responsible for installing GConf
+defaults files and registering GConf schemas.
+
+An appropriate dependency on gconf2 will be generated in B<${misc:Depends}>.
+
+=head1 FILES
+
+=over 4
+
+=item debian/I<package>.gconf-defaults
+
+Installed into F<usr/share/gconf/defaults/10_package> in the package build
+directory, with I<package> replaced by the package name.
+
+=item debian/I<package>.gconf-mandatory
+
+Installed into F<usr/share/gconf/mandatory/10_package> in the package build
+directory, with I<package> replaced by the package name.
+
+=back
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<--priority> I<priority>
+
+Use I<priority> (which should be a 2-digit number) as the defaults
+priority instead of B<10>. Higher values than ten can be used by 
+derived distributions (B<20>), CDD distributions (B<50>), or site-specific
+packages (B<90>).
+
+=back
+
+=cut
+
+init();
+
+my $priority=10;
+if (defined $dh{PRIORITY}) {
+	$priority=$dh{PRIORITY};
+}
+
+# PROMISE: DH NOOP WITHOUT gconf-mandatory gconf-defaults tmp(etc/gconf/schemas) tmp(usr/share/gconf/schemas)
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp=tmpdir($package);
+	
+	my $mandatory = pkgfile($package, "gconf-mandatory");
+	if ($mandatory ne '') {
+		install_dir("$tmp/usr/share/gconf/mandatory");
+		install_file($mandatory,
+					 "$tmp/usr/share/gconf/mandatory/${priority}_$package");
+	}
+	my $defaults = pkgfile($package,"gconf-defaults");
+	if ($defaults ne '') {
+		doit("mkdir","-p","$tmp/usr/share/gconf/defaults");
+		install_file($defaults, "$tmp/usr/share/gconf/defaults/${priority}_$package");
+	}
+
+	my $old_schemas_dir = "$tmp/etc/gconf/schemas";
+	my $new_schemas_dir = "$tmp/usr/share/gconf/schemas";
+
+	# Migrate schemas from /etc/gconf/schemas to /usr/share/gconf/schemas
+	if (-d $old_schemas_dir) {
+		doit("mkdir","-p",$new_schemas_dir) unless -d $new_schemas_dir;
+		complex_doit("mv $old_schemas_dir/*.schemas $new_schemas_dir/");
+		doit("rmdir","-p","--ignore-fail-on-non-empty",$old_schemas_dir);
+	}
+
+	if (-d "$new_schemas_dir") {
+		# Get a list of the schemas
+		my $schemas = `find $new_schemas_dir -type f -name \\*.schemas -printf '%P '`;
+		if ($schemas ne '') {
+			addsubstvar($package, "misc:Depends", "gconf2 (>= 2.28.1-2)");
+		}
+	}
+}
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Ross Burton <ross@burtonini.com>
+Josselin Mouette <joss@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

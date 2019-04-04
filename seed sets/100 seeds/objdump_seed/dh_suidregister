@@ -1,0 +1,134 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_suidregister - suid registration program (deprecated)
+
+=head1 SYNOPSIS
+
+Do not run!
+
+=head1 DESCRIPTION
+
+This program used to register suid and sgid files with L<suidregister(1)>,
+but with the introduction of L<dpkg-statoverride(8)>, registration of files
+in this way is unnecessary, and even harmful, so this program is deprecated
+and should not be used.
+
+=head1 CONVERTING TO STATOVERRIDE
+
+Converting a package that uses this program to use the new statoverride
+mechanism is easy. Just remove the call to B<dh_suidregister> from
+F<debian/rules>, and add a versioned conflicts into your F<control> file, as
+follows:
+
+  Conflicts: suidmanager (<< 0.50)
+
+The conflicts is only necessary if your package used to register things
+with suidmanager; if it did not, you can just remove the call to this
+program from your rules file.
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+init();
+
+my $notused=1;
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp=tmpdir($package);
+	my $suid=pkgfile($package,"suid");
+	my $tostrip='';
+
+	my @files;
+	if ($suid) {
+		@files=filearray($suid, $tmp);
+	}
+
+	if (($package eq $dh{FIRSTPACKAGE} || $dh{PARAMS_ALL}) && @ARGV) {
+		push @files, @ARGV;
+	}
+
+	if (! @files && ! $suid) {
+		# No files specified (and no empty debian/suid file), so
+		# guess what files to process.
+		@files=split(/\n/,`find $tmp -type f -perm /6000`);
+
+		# Strip the debian working directory off of the filenames.
+		$tostrip="$tmp/";
+	}
+	else {
+		# We will strip leading /'s, so the user can feed this
+		# program either absolute filenames, or relative filenames,
+		# and it will do the right thing either way.
+		$tostrip="/";
+	}
+
+	# Register files with suidregister.
+	foreach my $file (@files) {
+		# Strip leading $tostrip from $file.
+		$file=~s/^$tostrip//;
+
+		# Create the sed string that will be used to
+		# fill in the blanks in the autoscript files.
+		# Fill with the owner, group, and perms of the file.
+		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks) = stat("$tmp/$file");
+		# Now come up with the user and group names for the uid and
+		# gid.
+		my $user=getpwuid($uid);
+		if (! defined $user) {
+			warning("$file has odd uid $uid, not in /etc/passwd");
+			$user=$uid;
+		}
+		my $group=getgrgid($gid);
+		if (! defined $group) {
+			warning("$file has odd gid $gid not in /etc/group");
+			$group=$gid;
+		}
+		# Note that I have to print mode in octal, stripping file
+		# type.
+		my $sedstr=sprintf("s:#FILE#:$file:;s/#PACKAGE#/$package/;s/#OWNER#/$user/;s/#GROUP#/$group/;s/#PERMS#/%#o/",
+                                   $mode & 07777);
+		autoscript($package,"postinst","postinst-suid",$sedstr);
+		autoscript($package,"postrm","postrm-suid","$sedstr");
+	}
+
+	# Remove suid bits from files. This is delayed to this point, because
+	# of a situation with hard linked files if it is done earlier.
+	# See changelog for 2.0.77.
+	foreach my $file (@files) {
+		if ( -e "$tmp/$file") {
+			doit("chmod","a-s","$tmp/$file");
+		}
+	}
+
+	if (@files) {
+		warning("This program should no longer be used. Please read the dh_suidregister(1) man page.");
+		$notused=0;
+	}
+}
+
+# Although they called it, it's not going to do anything.
+if ($notused) {
+	warning("This program is obsolete, does nothing, and may be safely removed from your rules file.");
+}
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Joey Hess <joeyh@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

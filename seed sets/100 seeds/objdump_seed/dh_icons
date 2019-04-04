@@ -1,0 +1,91 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_icons - Update caches of Freedesktop icons
+
+=cut
+
+use strict;
+use warnings;
+use File::Find;
+use Debian::Debhelper::Dh_Lib;
+
+=head1 SYNOPSIS
+
+B<dh_icons> [S<I<debhelper options>>] [B<-n>]
+
+=head1 DESCRIPTION
+
+B<dh_icons> is a debhelper program that updates caches of Freedesktop icons
+when needed, using the B<update-icon-caches> program provided by GTK+2.12.
+Currently this program does not handle installation of the files, though it
+may do so at a later date, so should be run after icons are installed in
+the package build directories. 
+
+It takes care of adding maintainer script fragments to call
+B<update-icon-caches> for icon directories. (This is not done for gnome and
+hicolor icons, as those are handled by triggers.)
+These commands are inserted into the maintainer scripts by L<dh_installdeb(1)>.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-n>, B<--noscripts>
+
+Do not modify maintainer scripts.
+
+=back
+
+=cut
+
+init();
+
+# PROMISE: DH NOOP WITHOUT tmp(usr/share/icons)
+my $baseicondir="/usr/share/icons";
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp=tmpdir($package);
+	my $icondir="$tmp$baseicondir";
+	if (-d $icondir) {
+		my @dirlist;
+		opendir(my $dirfd, $icondir) or error("Cannot opendir($icondir): $!");
+		while (my $subdir = readdir($dirfd)) {
+			next if $subdir =~ /^\./;
+			next if $subdir eq "gnome";
+			next if $subdir eq "hicolor";
+			my $needs_cache = 0;
+			find sub {
+				$needs_cache = 1 if -f and (/\.png$/ or /\.svg$/ or /\.xpm$/ or /\.icon$/);
+			}, "$icondir/$subdir" ;
+			push @dirlist, "$baseicondir/$subdir" if $needs_cache;
+		}
+		closedir($dirfd);
+		if (@dirlist and ! $dh{NOSCRIPTS}) {
+			my $list=join(" ", sort @dirlist);
+			autoscript($package,"postinst","postinst-icons","s%#DIRLIST#%$list%g");
+			autoscript($package,"postrm","postrm-icons","s%#DIRLIST#%$list%g");
+		}
+	}
+}
+
+=head1 SEE ALSO
+
+L<debhelper>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Ross Burton <ross@burtonini.com>
+Jordi Mallach <jordi@debian.org>
+Josselin Mouette <joss@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

@@ -1,0 +1,102 @@
+#!/bin/sh
+
+if [ $(id -ru) -ne 0 ]; then
+    echo "$0 must be run as root"
+    exit 1
+fi
+
+get(){
+    if [ ! -e $tardir/${@:$#} ] ; then
+	mkdir -p $tardir/${@:$#}
+    fi
+    if [ -e $1 ] ; then
+	cp -a ${@:1:$#-1} $tardir/${@:$#} 2>/dev/null
+    fi
+}
+
+igtdir=`dirname $0`
+
+if [ -d /debug/dri ] ; then
+	debugfs_path=/debug_dri
+fi
+
+if [ -d /sys/kernel/debug/dri ] ; then
+	debugfs_path=/sys/kernel/debug/dri
+fi
+
+i915_debugfs=x
+for dir in `ls $debugfs_path` ; do
+	if [ -f $debugfs_path/$dir/i915_error_state ] ; then
+		i915_debugfs=$debugfs_path/$dir
+		break
+	fi
+done
+
+if [ $i915_debugfs = "x" ] ; then
+	echo i915 debugfs path not found.
+	exit 1
+fi
+
+tmpdir=`mktemp -d`
+tardir=$tmpdir/intel_gpu_abrt
+mkdir $tardir
+
+get $i915_debugfs/* debugfs
+
+get /sys/module/i915/parameters/* mod_opts
+
+mkdir $tardir/X
+xrandr --verbose > $tardir/X/xrandr
+get /var/log/Xorg.0.log X
+get /var/log/Xorg.0.log.old X
+get /etc/X11/xorg.conf X
+get /etc/X11/xorg.conf.d/ X
+
+dmesg > $tardir/dmesg
+lspci -nn > $tardir/lspci
+
+$igtdir/intel_reg dump > $tardir/intel_reg_dump.txt
+$igtdir/intel_bios_dumper $tardir/intel_bios_dump
+$igtdir/intel_stepping > $tardir/intel_stepping
+
+echo 1 > /sys/devices/pci0000:00/0000:00:02.0/rom
+cat /sys/devices/pci0000:00/0000:00:02.0/rom > $tardir/vbios.dump
+echo 0 > /sys/devices/pci0000:00/0000:00:02.0/rom
+
+(cd $tmpdir; tar -c intel_gpu_abrt ) > intel_gpu_abrt.tar
+
+rm $tmpdir -Rf
+
+if [ -f intel_gpu_abrt.tar ] ; then
+	cat <<EOF
+intel_gpu_abrt.tar has been created.
+
+Please attach it to https://bugs.freedesktop.org
+with a good bug description as suggested in this template:
+
+System environment:
+-- chipset:
+-- system architecture: `uname -m`
+-- xf86-video-intel:
+-- xserver: `grep "X.Org X Server" /var/log/Xorg.0.log | awk '{print $NF}'`
+-- mesa:
+-- libdrm: `pkg-config --modversion libdrm`
+-- kernel: `uname -r`
+-- Linux distribution:
+-- Machine or mobo model:
+-- Display connector:
+
+Reproducing steps:
+
+Additional info:
+
+EOF
+exit 0
+else
+cat <<EOF
+Error on tarball generation.
+For bug report, please follow manual instructions available at:
+https://01.org/linuxgraphics/documentation/how-report-bugs-0
+EOF
+exit 1
+fi

@@ -1,0 +1,53 @@
+#!/bin/sh
+# © 2011 Cyril Brulebois <kibi@debian.org>
+#
+# Usage:
+#   Call this script from debian/rules, before dh_gencontrol is run,
+#   to get all needed variables computed in debian/$p.substvars for
+#   each package $p found through dh_listpackages.
+#   .
+#   This script has support for udebs.
+set -e
+
+# Sanity check. All drivers build-depend on debhelper:
+if ! which dh_listpackages >/dev/null 2>&1; then
+  echo "E: dh_listpackages not found, debhelper package missing?"
+  exit 1
+fi
+
+# Read the dependencies once:
+INPUTDEP=$(cat /usr/share/xserver-xorg/xinputdep 2>/dev/null)
+VIDEODEP=$(cat /usr/share/xserver-xorg/videodrvdep 2>/dev/null)
+
+# Iterate on the packages:
+for package in $(dh_listpackages); do
+  case $package in
+    *-udeb-hwe-16.04)
+      # udebs depend on udebs, tweak the dependency on the server:
+      inputdep=$(echo "$INPUTDEP"|sed 's/xserver-xorg-core-hwe-16.04/&-udeb-hwe-16.04/')
+      videodep=$(echo "$VIDEODEP"|sed 's/xserver-xorg-core-hwe-16.04/&-udeb-hwe-16.04/')
+    ;;
+    *)
+      # just copy the dependencies read previously:
+      inputdep="$INPUTDEP"
+      videodep="$VIDEODEP"
+  esac
+
+  # To avoid having "unused substitution variable" warnings from
+  # dpkg-gencontrol, only set variables which make sense:
+  case $package in
+    *-dbg|*-dev-hwe-16.04|*-all-hwe-16.04)
+      # debug, devel, or meta package, no need for Depends/Provides.
+      :
+    ;;
+    xserver-xorg-input-*)
+      # input driver:
+      echo "xinpdriver:Depends=$inputdep" >> debian/$package.substvars
+      echo "xinpdriver:Provides=xorg-driver-input" >> debian/$package.substvars
+    ;;
+    xserver-xorg-video-*)
+      # video driver:
+      echo "xviddriver:Depends=$videodep" >> debian/$package.substvars
+      echo "xviddriver:Provides=xorg-driver-video" >> debian/$package.substvars
+  esac
+done

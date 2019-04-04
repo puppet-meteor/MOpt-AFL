@@ -1,0 +1,97 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_installlogcheck - install logcheck rulefiles into etc/logcheck/
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+
+=head1 SYNOPSIS
+
+B<dh_installlogcheck> [S<I<debhelper options>>]
+
+=head1 DESCRIPTION
+
+B<dh_installlogcheck> is a debhelper program that is responsible for
+installing logcheck rule files.
+
+=head1 FILES
+
+=over 4
+
+=item debian/I<package>.logcheck.cracking
+
+=item debian/I<package>.logcheck.violations
+
+=item debian/I<package>.logcheck.violations.ignore
+
+=item debian/I<package>.logcheck.ignore.workstation
+
+=item debian/I<package>.logcheck.ignore.server
+
+=item debian/I<package>.logcheck.ignore.paranoid
+
+Each of these files, if present, are installed into corresponding
+subdirectories of F<etc/logcheck/> in package build directories.
+
+=back
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<--name=>I<name>
+
+Look for files named F<debian/package.name.logcheck.*> and install
+them into the corresponding subdirectories of F<etc/logcheck/>, but
+use the specified name instead of that of the package.
+
+=back
+
+=cut
+
+init();
+
+# PROMISE: DH NOOP WITHOUT logcheck.cracking logcheck.violations logcheck.violations.ignore logcheck.ignore.workstation logcheck.ignore.server logcheck.ignore.paranoid
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp=tmpdir($package);
+
+	foreach my $type (qw{ignore.d.workstation ignore.d.server
+	                     ignore.d.paranoid cracking.d
+                             violations.d violations.ignore.d}) {
+		my $typenod=$type;
+		$typenod=~s/\.d//;
+		my $logcheck=pkgfile($package,"logcheck.$typenod");
+		if ($logcheck) {
+			if (! -d "$tmp/etc/logcheck/$type") {
+				install_dir("$tmp/etc/logcheck/$type");
+			}
+			my $packagenodot=pkgfilename($package); # run-parts..
+			$packagenodot=~s/\./_/g;
+			install_file($logcheck, "$tmp/etc/logcheck/$type/$packagenodot");
+		}
+	}
+}
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+    
+=head1 AUTHOR
+
+Jon Middleton <jjm@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

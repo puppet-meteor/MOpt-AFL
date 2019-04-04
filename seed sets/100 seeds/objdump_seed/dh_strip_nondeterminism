@@ -1,0 +1,98 @@
+#!/usr/bin/perl -w
+
+=head1 NAME
+
+dh_strip_nondeterminism - strip uninteresting, non-deterministic information from files
+
+=cut
+
+use strict;
+use File::Find;
+use Debian::Debhelper::Dh_Lib;
+use File::StripNondeterminism;
+use Date::Parse;
+use POSIX qw(tzset);
+
+=head1 SYNOPSIS
+
+B<dh_strip_nondeterminism> [S<I<debhelper options>>] [B<-X>I<item>]
+
+=head1 DESCRIPTION
+
+B<dh_strip_nondeterminism> is a debhelper program that is responsible
+for stripping uninteresting, non-deterministic information, such as
+timestamps, from compiled files so that the build is reproducible.
+
+This program examines your package build directories and works out what
+to strip on its own. It uses L<file(1)> and filenames to figure out what
+files should have non-determinism stripped from them.  In general it
+seems to make very good guesses, and will do the right thing in almost
+all cases.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-X>I<item>, B<--exclude=>I<item>
+
+Exclude files that contain I<item> anywhere in their filename from being
+stripped. You may use this option multiple times to build up a list of
+things to exclude.
+
+=back
+
+=cut
+
+init();
+
+my @nondeterministic_files;
+sub testfile {
+	return if -l $_ or -d $_; # Skip directories and symlinks always.
+
+	# See if we were asked to exclude this file.
+	# Note that we have to test on the full filename, including directory.
+	my $fn="$File::Find::dir/$_";
+	foreach my $f (@{$dh{EXCLUDE}}) {
+		return if ($fn=~m/\Q$f\E/);
+	}
+
+	my $normalizer = File::StripNondeterminism::get_normalizer_for_file($_);
+	if ($normalizer) {
+		push @nondeterministic_files, [$fn, $normalizer];
+	}
+}
+
+$ENV{'TZ'} = 'UTC';
+tzset();
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp=tmpdir($package);
+
+	@nondeterministic_files=();
+	find(\&testfile,$tmp);
+	next unless @nondeterministic_files;
+
+	$File::StripNondeterminism::canonical_time = eval { get_source_date_epoch() };
+	if (not defined $File::StripNondeterminism::canonical_time) {
+		# Hack for old versions of debhelper
+		isnative($package); # Sets $dh{DATE} as a side-effect
+		$File::StripNondeterminism::canonical_time = str2time($dh{DATE});
+	}
+
+	foreach (@nondeterministic_files) {
+		my ($path, $normalize) = @$_;
+		eval { $normalize->($path); 1 } or die "dh_strip_nondeterminism: $path: $@";
+	}
+}
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Andrew Ayer <agwa@andrewayer.name>
+
+=cut

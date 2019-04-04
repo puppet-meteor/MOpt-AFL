@@ -1,0 +1,91 @@
+#!/bin/sh -e
+# Determine the most appropriate Apport user interface (GTK/KDE/CLI) and file a
+# bug with it.
+#
+# Copyright (C) 2009 Canonical Ltd.
+# Author: Martin Pitt <martin.pitt@ubuntu.com>
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 2 of the License, or (at your
+# option) any later version.  See http://www.gnu.org/copyleft/gpl.html for
+# the full text of the license.
+
+# Explicitly set the PATH to that of ENV_SUPATH in /etc/login.defs. We need do
+# this so that confined applications using ubuntu-browsers.d/ubuntu-integration
+# cannot abuse the environment to escape AppArmor confinement via this script
+# (LP: #1045986). This can be removed once AppArmor supports environment
+# filtering (LP: #1045985)
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+if [ "${0%-collect}" != "$0" ]; then
+    prefix=python
+    if ! python -c 'import apport' 2>/dev/null; then
+        echo "You need to run 'sudo apt-get install python-apport' for apport-collect to work." >&2
+        exit 1
+    fi
+fi
+
+# locate path of a particular program
+find_program() {
+    for p in /usr/local/bin /usr/bin /usr/local/share/apport /usr/share/apport; do
+	if [ -x $p/$1 ]; then
+	    RET="$prefix $p/$1"
+	    return
+	fi
+    done
+    unset RET
+}
+
+# determine which UIs are available, and where
+find_programs() {
+    find_program "apport-cli"
+    CLI="$RET"
+    find_program "apport-gtk"
+    GTK="$RET"
+    find_program "apport-kde"
+    KDE="$RET"
+}
+
+#
+# main
+#
+
+find_programs
+
+export APPORT_INVOKED_AS="$0"
+
+# check for X
+if [ -z "$DISPLAY" -a -z "$WAYLAND_DISPLAY" ]; then
+    if [ -n "$CLI" ] ; then
+        $CLI "$@"
+    else
+        echo "Neither \$DISPLAY nor \$WAYLAND_DISPLAY is set. You need apport-cli to make this program work." >&2
+        exit 1
+    fi
+
+# do we have a running Gnome/KDE session?
+elif pgrep -u `id -u` -x gnome-session >/dev/null && \
+    [ -n "$GTK" ]; then
+    $GTK "$@"
+elif pgrep -u `id -u` -x ksmserver >/dev/null && \
+    [ -n "$KDE" ]; then
+    $KDE "$@"
+
+# fall back to calling whichever is available
+elif [ -n "$GTK" ]; then
+    $GTK "$@"
+elif [ -n "$KDE" ]; then
+    $KDE "$@"
+elif [ -n "$CLI" ]; then
+    if [ -z "$TERM" ] && [ -x "$XTERM" ]; then
+         "$XTERM" -e "$CLI" "$@"
+    else
+        $CLI "$@"
+    fi
+
+else
+    echo "Neither apport-gtk, apport-kde, apport-cli, or whoopsie-upload-all are installed. Install either to make this program work." >&2
+    exit 1
+fi
+

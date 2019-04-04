@@ -1,0 +1,132 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_installmodules - register kernel modules
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+use File::Find;
+
+=head1 SYNOPSIS
+
+B<dh_installmodules> [S<I<debhelper options>>] [B<-n>] [B<--name=>I<name>]
+
+=head1 DESCRIPTION
+
+B<dh_installmodules> is a debhelper program that is responsible for
+registering kernel modules.
+
+Kernel modules are searched for in the package build directory and if
+found, F<preinst>, F<postinst> and F<postrm> commands are automatically generated to
+run B<depmod> and register the modules when the package is installed. 
+These commands are inserted into the maintainer scripts by
+L<dh_installdeb(1)>.
+
+=head1 FILES
+
+=over 4
+
+=item debian/I<package>.modprobe
+
+Installed to etc/modprobe.d/I<package>.conf in the package build directory.
+
+=back
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-n>, B<--noscripts>
+
+Do not modify F<preinst>/F<postinst>/F<postrm> scripts.
+
+=item B<--name=>I<name>
+
+When this parameter is used, B<dh_installmodules> looks for and
+installs files named debian/I<package>.I<name>.modprobe instead
+of the usual debian/I<package>.modprobe
+
+=back
+
+=head1 NOTES
+
+Note that this command is not idempotent. L<dh_prep(1)> should be called
+between invocations of this command. Otherwise, it may cause multiple
+instances of the same text to be added to maintainer scripts.
+
+=cut
+
+init();
+
+# Looks for kernel modules in the passed directory. If any are found,
+# returns the kernel version (or versions) that the modules seem to be for.
+sub find_kernel_modules {
+	my $searchdir=shift;
+	my %versions;
+
+	return unless -d $searchdir;
+	find(sub {
+		if (/\.k?o$/) {
+			my ($kvers)=$File::Find::dir=~m!lib/modules/([^/]+)/!;
+			if (! defined $kvers || ! length $kvers) {
+				warning("Cannot determine kernel version for module $File::Find::name");
+			}
+			else {
+				$versions{$kvers}=1;
+			}
+		}
+	}, $searchdir);
+
+	return keys %versions;
+}
+
+# PROMISE: DH NOOP WITHOUT modprobe tmp(lib/modules)
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp=tmpdir($package);
+	my $modprobe_file=pkgfile($package,"modprobe");
+
+	if (! -e $tmp) {
+		install_dir($tmp);
+	}
+
+	if ($modprobe_file) {
+		if (! -e "$tmp/etc/modprobe.d") {
+			install_dir("$tmp/etc/modprobe.d");
+		}
+		my $old="/etc/modprobe.d/".pkgfilename($package);
+		my $new=$old.".conf";
+		install_file($modprobe_file, "$tmp/$new");
+		autoscript($package,"preinst","preinst-moveconffile","s!#OLD#!$old!g;s!#PACKAGE#!$package!g");
+		autoscript($package,"postinst","postinst-moveconffile","s!#OLD#!$old!g;s!#NEW#!$new!g");
+	}
+	
+	if (! $dh{NOSCRIPTS}) {
+		foreach my $kvers (find_kernel_modules("$tmp/lib/modules")) {
+			autoscript($package,"postinst","postinst-modules","s/#KVERS#/$kvers/g");
+			autoscript($package,"postrm","postrm-modules","s/#KVERS#/$kvers/g");
+		}
+	}
+}
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Joey Hess <joeyh@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

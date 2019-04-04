@@ -1,0 +1,77 @@
+#!/usr/bin/perl -w
+
+=head1 NAME
+
+dh_scour - run scour optimizer on shipped SVG files
+
+=cut
+
+use strict;
+use File::Find;
+use Debian::Debhelper::Dh_Lib;
+
+=head1 SYNOPSIS
+
+B<dh_scour> [I<debhelper options>] [S<B<--> I<params>>]
+
+=head1 DESCRIPTION
+
+dh_scour is a debhelper program that will run the scour SVG image
+scrubber on all shipped SVG files.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<--> I<params>
+
+Pass "params" to L<scour(1)>. By default, no extra arguments are passed.
+
+=back
+
+=cut
+
+init();
+
+sub iter {
+    return unless /\.svgz?$/;
+    return if -l $_ or -d $_; # Skip directories and symlinks
+    my $name = $_;
+
+    # See if we were asked to exclude this file.
+    foreach my $f (@{$dh{EXCLUDE}}) {
+	    return if ($File::Find::name =~ m/\Q$f\E/);
+    }
+
+    my $optname = $name;
+    $optname =~ s/(svgz?)$/opt.$1/;
+    my @scour_cmd = ('scour', '-i', $name, '-o', $optname, '--disable-style-to-xml', @ARGV);
+    my @check_cmd = ('/usr/share/python-scour/cmpsvg', $name, $optname);
+    verbose_print(escape_shell(@scour_cmd));
+    verbose_print(escape_shell(@check_cmd));
+    if (system (@scour_cmd) == 0 && system (@check_cmd) == 0) {
+	# fix permisssions
+	my @st = stat $name;
+	chmod $st[2], $optname or error("cannot restore permissions on optimized SVG file: $!");
+	chown $st[4], $st[5], $optname or error("cannot restore user/group on optimized SVG file: $!");
+
+	rename $optname, $name or error("cannot rename optimized SVG file: $!");
+    } else {
+	warning "scour was not able to process $name";
+	unlink $optname;
+    }
+}
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+    find(\&iter, tmpdir($package))
+}
+
+=head1 SEE ALSO
+
+L<debhelper>
+
+=head1 AUTHOR
+
+Martin Pitt <martin.pitt@ubuntu.com>
+
+=cut

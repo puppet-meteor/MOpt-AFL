@@ -1,0 +1,77 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_prep - perform cleanups in preparation for building a binary package
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+
+=head1 SYNOPSIS
+
+B<dh_prep> [S<I<debhelper options>>] [B<-X>I<item>]
+
+=head1 DESCRIPTION
+
+B<dh_prep> is a debhelper program that performs some file cleanups in
+preparation for building a binary package. (This is what B<dh_clean -k>
+used to do.) It removes the package build directories, F<debian/tmp>,
+and some temp files that are generated when building a binary package.
+
+It is typically run at the top of the B<binary-arch> and B<binary-indep> targets,
+or at the top of a target such as install that they depend on.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-X>I<item> B<--exclude=>I<item>
+
+Exclude files that contain F<item> anywhere in their filename from being
+deleted, even if they would normally be deleted. You may use this option
+multiple times to build up a list of things to exclude.
+
+=back
+
+=cut
+
+init();
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmp=tmpdir($package);
+	my $ext=pkgext($package);
+
+	doit("rm","-f","debian/${ext}substvars")
+		unless excludefile("debian/${ext}substvars");
+		
+	# These are all debhelper temp files, and so it is safe to 
+	# wildcard them.
+	complex_doit("rm -f debian/$ext*.debhelper");
+	
+	doit ("rm","-rf",$tmp."/")
+		unless excludefile($tmp);
+}
+
+doit('rm', '-rf', 'debian/tmp') if -x 'debian/tmp' &&
+                                   ! excludefile("debian/tmp");
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Joey Hess <joeyh@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

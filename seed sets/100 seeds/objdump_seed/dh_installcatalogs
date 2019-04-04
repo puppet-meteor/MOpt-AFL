@@ -1,0 +1,139 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_installcatalogs - install and register SGML Catalogs
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+
+my $sgmlbasever = "1.26+nmu2";
+
+=head1 SYNOPSIS
+
+B<dh_installcatalogs> [S<I<debhelper options>>] [B<-n>]
+
+=head1 DESCRIPTION
+
+B<dh_installcatalogs> is a debhelper program that installs and
+registers SGML catalogs. It complies with the Debian XML/SGML policy.
+
+Catalogs will be registered in a supercatalog, in
+F</etc/sgml/I<package>.cat>.
+
+This command automatically adds maintainer script snippets for
+registering and unregistering the catalogs and supercatalogs (unless
+B<-n> is used). These snippets are inserted into the maintainer scripts
+by B<dh_installdeb>; see L<dh_installdeb(1)> for an explanation of
+Debhelper maintainer script snippets.
+
+A dependency on B<sgml-base> will be added to B<${misc:Depends}>, so be
+sure your package uses that variable in F<debian/control>.
+
+=head1 FILES
+
+=over 4
+
+=item debian/I<package>.sgmlcatalogs
+
+Lists the catalogs to be installed per package. Each line in that file
+should be of the form C<I<source> I<dest>>, where I<source> indicates where the
+catalog resides in the source tree, and I<dest> indicates the destination
+location for the catalog under the package build area. I<dest> should
+start with F</usr/share/sgml/>.
+
+=back
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-n>, B<--noscripts>
+
+Do not modify F<postinst>/F<postrm>/F<prerm> scripts.
+
+=back
+
+=head1 NOTES
+
+Note that this command is not idempotent. L<dh_prep(1)> should be
+called between invocations of this command. Otherwise, it may cause
+multiple instances of the same text to be added to maintainer scripts.
+
+=cut
+
+init();
+
+# PROMISE: DH NOOP WITHOUT sgmlcatalogs
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	my $tmpdir = tmpdir($package);
+	my $sgmlcatlistfile = pkgfile($package, "sgmlcatalogs");
+	my @sgmlinstalled; # catalogs we've installed
+	if ($#ARGV >= 0) {
+		error("extra command-line arguments");
+	}
+	if ($sgmlcatlistfile) {
+		foreach my $line (filedoublearray($sgmlcatlistfile)) {
+			my $source = $line->[0];
+			my $dest = $line->[1];
+	                my $fulldest = "$tmpdir/$dest"; 
+			$fulldest =~ s|//|/|g; # beautification
+	
+			if (! -d dirname($fulldest)) {
+				install_dir($tmpdir."/".dirname($dest));
+			}
+
+			install_file($source,$fulldest);
+
+			push(@sgmlinstalled,$dest);
+		}
+	}
+	if (@sgmlinstalled) {
+		addsubstvar($package, "misc:Depends", "sgml-base", ">= $sgmlbasever");
+
+		if (! -d "$tmpdir/etc/sgml") {
+			install_dir("$tmpdir/etc/sgml");
+		}
+
+		my $centralcat = "/etc/sgml/$package.cat";
+
+		open(CENTRALCAT, ">", "$tmpdir$centralcat") || error("failed to write to $tmpdir$centralcat");
+		foreach my $sgmldest (@sgmlinstalled) {
+			print CENTRALCAT "CATALOG " . $sgmldest . "\n";
+		}
+		close CENTRALCAT;
+
+		if (! $dh{NOSCRIPTS}) {
+			autoscript($package, "preinst", "preinst-sgmlcatalog",
+				   "s%#CENTRALCAT#%$centralcat%g;");
+			autoscript($package, "postrm", "postrm-sgmlcatalog",
+				   "s%#CENTRALCAT#%$centralcat%g;");
+		}
+	}
+	else {
+		# remove the dependency
+		addsubstvar($package, "misc:Depends", "sgml-base", ">= $sgmlbasever", 1);
+	}
+}
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+F</usr/share/doc/sgml-base-doc/>
+
+=head1 AUTHOR
+
+Adam Di Carlo <aph@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

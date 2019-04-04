@@ -1,0 +1,128 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+dh_installexamples - install example files into package build directories
+
+=cut
+
+use strict;
+use warnings;
+use Debian::Debhelper::Dh_Lib;
+
+=head1 SYNOPSIS
+
+B<dh_installexamples> [S<I<debhelper options>>] [B<-A>] [B<-X>I<item>] [S<I<file> ...>]
+
+=head1 DESCRIPTION
+
+B<dh_installexamples> is a debhelper program that is responsible for
+installing examples into F<usr/share/doc/package/examples> in package
+build directories.
+
+=head1 FILES
+
+=over 4
+
+=item debian/I<package>.examples
+
+Lists example files or directories to be installed.
+
+=back
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-A>, B<--all>
+
+Install any files specified by command line parameters in ALL packages
+acted on.
+
+=item B<-X>I<item>, B<--exclude=>I<item>
+
+Exclude files that contain I<item> anywhere in their filename from
+being installed.
+
+=item I<file> ...
+
+Install these files (or directories) as examples into the first package
+acted on. (Or into all packages if B<-A> is specified.)
+
+=back
+
+=head1 NOTES
+
+Note that B<dh_installexamples> will happily copy entire directory hierarchies
+if you ask it to (similar to B<cp -a>). If it is asked to install a
+directory, it will install the complete contents of the directory.
+
+=cut
+
+init();
+
+# PROMISE: DH NOOP WITHOUT examples
+
+foreach my $package (@{$dh{DOPACKAGES}}) {
+	next if is_udeb($package);
+
+	my $tmp=tmpdir($package);
+	my $file=pkgfile($package,"examples");
+	
+	my @examples;
+	
+	if ($file) {
+		@examples=filearray($file, ".");
+	}	
+
+	if (($package eq $dh{FIRSTPACKAGE} || $dh{PARAMS_ALL}) && @ARGV) {
+		push @examples, @ARGV;
+	}
+	
+	if (@examples) {
+		if (! -d "$tmp/usr/share/doc/$package/examples") {
+			install_dir("$tmp/usr/share/doc/$package/examples");
+		}
+		
+		my $exclude = '';
+		if ($dh{EXCLUDE_FIND}) {
+			$exclude .= ' -and ! \( '.$dh{EXCLUDE_FIND}.' \)';
+		}
+		
+		foreach my $example (@examples) {
+			next if excludefile($example);
+			if (-d $example && $exclude) {
+				my $basename = basename($example);
+				my $dir = ($basename eq '.') ? $example : "$example/..";
+				my $pwd=`pwd`;
+				chomp $pwd;
+				my $exclude2 = '-type f'.$exclude;
+				complex_doit("cd '$dir' && " .
+							 "find '$basename' -type f$exclude -print0 | LC_ALL=C sort -z | " .
+							 "xargs -0 -I {} cp --reflink=auto --parents -dp {} $pwd/$tmp/usr/share/doc/$package/examples");
+			}
+			else {
+				doit("cp", '--reflink=auto', "-a", $example,
+					 "$tmp/usr/share/doc/$package/examples");
+			}
+		}
+	}
+}
+
+=head1 SEE ALSO
+
+L<debhelper(7)>
+
+This program is a part of debhelper.
+
+=head1 AUTHOR
+
+Joey Hess <joeyh@debian.org>
+
+=cut
+
+# Local Variables:
+# indent-tabs-mode: t
+# tab-width: 4
+# cperl-indent-level: 4
+# End:

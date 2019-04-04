@@ -1,0 +1,119 @@
+#!/usr/bin/perl
+
+# Copyright 2011 Ben Hutchings
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+use strict;
+use warnings;
+
+use DebianLinux qw(version_cmp image_list);
+
+sub usage {
+    my $fh = shift;
+    print $fh (<< "EOT");
+Usage: $0 compare VERSION1 OP VERSION2
+       $0 sort [--reverse] [VERSION1 VERSION2 ...]
+       $0 list [--paths]
+
+The version arguments should be kernel version strings as shown by
+'uname -r' and used in filenames.
+
+The valid comparison operators are: lt le eq ge gt
+EOT
+}
+
+sub usage_error {
+    usage(*STDERR{IO});
+    exit 2;
+}
+
+sub compare_versions {
+    my %op_map = qw(lt < le <= eq == ge >= gt >);
+
+    # Check arguments
+    if (@_ != 3) {
+	usage_error();
+    }
+    my ($left, $op, $right) = @_;
+    if (!exists($op_map{$op})) {
+	usage_error();
+    }
+
+    my $sign = version_cmp($left, $right);
+    exit !eval("$sign ${op_map{$op}} 0");
+}
+
+sub sort_versions {
+    # Check for --reverse option
+    my $sign = 1;
+    if (@_ >= 1 and $_[0] eq '--reverse') {
+	$sign = -1;
+	shift;
+    }
+
+    # Collect versions from argv or stdin (with optional suffix after a space)
+    my @versions;
+    if (@_) {
+	@versions = map({[$_, "\n"]} @_);
+    } else {
+	while (<STDIN>) {
+	    /^([^ ]*)(.*\n?)$/ or die;
+	    push @versions, [$1, $2];
+	}
+    }
+
+    for (sort({version_cmp($a->[0], $b->[0]) * $sign} @versions)) {
+	print @$_;
+    }
+    exit 0;
+}
+
+sub list_versions {
+    my $show_paths;
+
+    if (@_ == 1 and $_[0] eq '--paths') {
+	$show_paths = 1;
+    } elsif (@_ != 0) {
+	usage_error();
+    }
+
+    for (image_list()) {
+	my ($version, $path) = @$_;
+	if ($show_paths) {
+	    print "$version $path\n";
+	} else {
+	    print "$version\n";
+	}
+    }
+    exit 0;
+}
+
+if (@ARGV == 0) {
+    usage_error();
+}
+
+my $command = shift;
+if ($command eq 'help' or grep({$_ eq '--help'} $command, @ARGV)) {
+    usage(*STDOUT{IO});
+    exit 0;
+} elsif ($command eq 'compare') {
+    compare_versions(@ARGV);
+} elsif ($command eq 'sort') {
+    sort_versions(@ARGV);
+} elsif ($command eq 'list') {
+    list_versions(@ARGV);
+}
+usage_error();
