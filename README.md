@@ -17,8 +17,14 @@ Note that you must add the parameter "-L" (e.g., "-L 0") to launch the MOpt sche
 Setting 0 will enter the pacemaker fuzzing mode at first, which is recommended in a short time-scale evaluation. 
 
 Most important parameters can be found in afl-fuzz.c, for instance 
+
 swarm_num: the number of the PSO swarms used in the fuzzing process.
+
 period_pilot: how many times MOpt-AFL will execute the target program in the pilot fuzzing module, then it will enter the core fuzzing module. 
+
 period_core: how many times MOpt-AFL will execute the target program in the core fuzzing module, then it will enter the PSO updating module. 
+
+limit_time_bound: control how many interesting test cases need to be found before MOpt-AFL quits the pacemaker fuzzing mode and reuses the deterministic stage. 
+0 < limit_time_bound < 1, MOpt-AFL-tmp.  limit_time_bound >= 1, MOpt-AFL-ever. 
 
 Having fun with MOpt-AFL. 
