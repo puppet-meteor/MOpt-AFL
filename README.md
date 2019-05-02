@@ -1,4 +1,6 @@
 # MOpt-AFL
+Chenyang Lv, Shouling Ji, Chao Zhang, Yuwei Li, Wei-Han Lee, Yu Song and Raheem Beyah, MOpt: Optimize Mutation Scheduling for Fuzzers, USENIX, 2019. 
+
 Seed sets used in the paper "MOpt: Optimize Mutation Scheduling for Fuzzers"
 
 The experiment results can be found in https://drive.google.com/drive/folders/184GOzkZGls1H2NuLuUfSp9gfqp1E2-lL?usp=sharing.  We only open source the crash files since the space is limited. 
