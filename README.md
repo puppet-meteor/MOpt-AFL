@@ -3,7 +3,7 @@
 MOpt-AFL is a AFL-based fuzzer that utilizes a customized Particle Swarm Optimization (PSO) algorithm to find the optimal selection probability distribution of operators with respect to fuzzing effectiveness. More details can be found in the technical report. The installation of MOpt-AFL is the same as AFL's. 
 
 ### 2. Cite Information
-Chenyang Lv, Shouling Ji, Chao Zhang, Yuwei Li, Wei-Han Lee, Yu Song and Raheem Beyah, MOpt: Optimize Mutation Scheduling for Fuzzers, USENIX Security 2019. 
+Chenyang Lv, Shouling Ji, Chao Zhang, Yuwei Li, Wei-Han Lee, Yu Song and Raheem Beyah, MOPT: Optimized Mutation Scheduling for Fuzzers, USENIX Security 2019. 
 
 ### 3. Seed Sets
 We open source all the seed sets used in the paper "MOpt: Optimize Mutation Scheduling for Fuzzers".
