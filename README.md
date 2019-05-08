@@ -6,13 +6,13 @@ MOpt-AFL is a AFL-based fuzzer that utilizes a customized Particle Swarm Optimiz
 Chenyang Lv, Shouling Ji, Chao Zhang, Yuwei Li, Wei-Han Lee, Yu Song and Raheem Beyah, MOPT: Optimized Mutation Scheduling for Fuzzers, USENIX Security 2019. 
 
 ### 3. Seed Sets
-We open source all the seed sets used in the paper "MOpt: Optimize Mutation Scheduling for Fuzzers".
+We open source all the seed sets used in the paper "MOPT: Optimized Mutation Scheduling for Fuzzers".
 
 ### 4. Experiment Results
 The experiment results can be found in https://drive.google.com/drive/folders/184GOzkZGls1H2NuLuUfSp9gfqp1E2-lL?usp=sharing.  We only open source the crash files since the space is limited. 
 
 ### 5. Technical Report
-MOpt_TechReport.pdf is the technical report of the paper "MOpt: Optimize Mutation Scheduling for Fuzzers", which contains more deatails. 
+MOpt_TechReport.pdf is the technical report of the paper "MOPT: Optimized Mutation Scheduling for Fuzzers", which contains more deatails. 
 
 ### 6. Parameter Introduction
 Most important, you must add the parameter `-L` (e.g., `-L 0`) to launch the MOpt scheme. 
