@@ -28,3 +28,18 @@ Other important parameters can be found in afl-fuzz.c, for instance,
 0 < `limit_time_bound` < 1, MOpt-AFL-tmp.  `limit_time_bound` >= 1, MOpt-AFL-ever. 
 
 Having fun with MOpt-AFL. 
+
+###Citation:
+
+`@inproceedings {236282,
+author = {Chenyang Lyu and Shouling Ji and Chao Zhang and Yuwei Li and Wei-Han Lee and Yu Song and Raheem Beyah},
+title = {{MOPT}: Optimized Mutation Scheduling for Fuzzers},
+booktitle = {28th {USENIX} Security Symposium ({USENIX} Security 19)},
+year = {2019},
+isbn = {978-1-939133-06-9},
+address = {Santa Clara, CA},
+pages = {1949--1966},
+url = {https://www.usenix.org/conference/usenixsecurity19/presentation/lyu},
+publisher = {{USENIX} Association},
+month = aug,
+}`
