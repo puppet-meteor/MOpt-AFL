@@ -29,7 +29,7 @@ Other important parameters can be found in afl-fuzz.c, for instance,
 
 Having fun with MOpt-AFL. 
 
-###Citation:
+### Citation:
 
 `@inproceedings {236282,`
 <br>`author = {Chenyang Lyu and Shouling Ji and Chao Zhang and Yuwei Li and Wei-Han Lee and Yu Song and Raheem Beyah},`
