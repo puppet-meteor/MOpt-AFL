@@ -31,26 +31,15 @@ Having fun with MOpt-AFL.
 
 ###Citation:
 
-`@inproceedings {236282,
-
-author = {Chenyang Lyu and Shouling Ji and Chao Zhang and Yuwei Li and Wei-Han Lee and Yu Song and Raheem Beyah},
-
-title = {{MOPT}: Optimized Mutation Scheduling for Fuzzers},
-
-booktitle = {28th {USENIX} Security Symposium ({USENIX} Security 19)},
-
-year = {2019},
-
-isbn = {978-1-939133-06-9},
-
-address = {Santa Clara, CA},
-
-pages = {1949--1966},
-
-url = {https://www.usenix.org/conference/usenixsecurity19/presentation/lyu},
-
-publisher = {{USENIX} Association},
-
-month = aug,
-
-}`
+`@inproceedings {236282,`
+<br>`author = {Chenyang Lyu and Shouling Ji and Chao Zhang and Yuwei Li and Wei-Han Lee and Yu Song and Raheem Beyah},`
+<br>`title = {{MOPT}: Optimized Mutation Scheduling for Fuzzers},`
+<br>`booktitle = {28th {USENIX} Security Symposium ({USENIX} Security 19)},`
+<br>`year = {2019},`
+<br>`isbn = {978-1-939133-06-9},`
+<br>`address = {Santa Clara, CA},`
+<br>`pages = {1949--1966},`
+<br>`url = {https://www.usenix.org/conference/usenixsecurity19/presentation/lyu},`
+<br>`publisher = {{USENIX} Association},`
+<br>`month = aug,`
+<br>`}`
