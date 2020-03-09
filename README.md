@@ -19,6 +19,7 @@ Most important, you must add the parameter `-L` (e.g., `-L 0`) to launch the MOp
 <br>`-L` controls the time to move on to the pacemaker fuzzing mode.
 <br>`-L t:` when MOpt-AFL finishes the mutation of one input, if it has not discovered any new unique crash or path for more than t min, MOpt-AFL will enter the pacemaker fuzzing mode. 
 <br>Setting 0 will enter the pacemaker fuzzing mode at first, which is recommended in a short time-scale evaluation. 
+<br>For instance, it may take three or four days for MOpt-AFL to enter the pacemaker fuzzing mode when `-L 30`. 
 
 Other important parameters can be found in afl-fuzz.c, for instance, 
 <br>`swarm_num:` the number of the PSO swarms used in the fuzzing process.
