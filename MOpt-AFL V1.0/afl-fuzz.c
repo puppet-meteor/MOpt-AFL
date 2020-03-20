@@ -10931,7 +10931,7 @@ static void usage(u8* argv0) {
        "  -t msec       - timeout for each run (auto-scaled, 50-%u ms)\n"
        "  -m megs       - memory limit for child process (%u MB)\n"
        "  -Q            - use binary-only instrumentation (QEMU mode)\n"
-       "  -L            - use MOpt-AFL and set the limit time for entering the pacemaker fuzzing mode (set 0 will enter pacemaker mode at first). For instance, (-L 30): if MOpt-AFL finishes the mutation of one input while does not find any interesting test case for more than 30 min, MOpt-AFL will enter the pacemaker fuzzing mode.\n\n"
+       "  -L            - use MOpt-AFL and set the limit time for entering the pacemaker fuzzing mode (set 0 will enter pacemaker mode at first). For instance, (-L 30): if MOpt-AFL finishes the mutation of one input while does not find any interesting test case for more than 30 min, MOpt-AFL will enter the pacemaker fuzzing mode (it may take three or four days for MOpt-AFL to enter the pacemaker fuzzing mode when '-L 30').\n\n"
 
        "Fuzzing behavior settings:\n\n"
 
