@@ -3,13 +3,13 @@
 # -----------------------------
 #
 # Written and maintained by Michal Zalewski <lcamtuf@google.com>
-# 
+#
 # Copyright 2013, 2014, 2015, 2016, 2017 Google Inc. All rights reserved.
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at:
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
 #
 
@@ -89,7 +89,9 @@ ifndef AFL_NO_X86
 test_build: afl-gcc afl-as afl-showmap
 	@echo "[*] Testing the CC wrapper and instrumentation output..."
 	unset AFL_USE_ASAN AFL_USE_MSAN; AFL_QUIET=1 AFL_INST_RATIO=100 AFL_PATH=. ./$(TEST_CC) $(CFLAGS) test-instr.c -o test-instr $(LDFLAGS)
-	echo 0 | ./afl-showmap -m none -q -o .test-instr0 ./test-instr
+# Use /dev/null to avoid problems with optimization messing up expected
+# branches. See https://github.com/google/AFL/issues/30.
+	./afl-showmap -m none -q -o .test-instr0 ./test-instr < /dev/null
 	echo 1 | ./afl-showmap -m none -q -o .test-instr1 ./test-instr
 	@rm -f test-instr
 	@cmp -s .test-instr0 .test-instr1; DR="$$?"; rm -f .test-instr0 .test-instr1; if [ "$$DR" = "0" ]; then echo; echo "Oops, the instrumentation does not seem to be behaving correctly!"; echo; echo "Please ping <lcamtuf@google.com> to troubleshoot the issue."; echo; exit 1; fi
