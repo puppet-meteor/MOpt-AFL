@@ -25,7 +25,7 @@ MOpt_TechReport.pdf is the technical report of the paper "MOPT: Optimized Mutati
 <del><br>For instance, it may take three or four days for MOpt-AFL to enter the pacemaker fuzzing mode when `-L 30`. </del>
 
 Hey guys, I realize that most experiments may last no longer than 24 hours. You may have trouble selecting a suitable value of 'L' without testing. So I modify the code in order to employ '-L 1' as the default setting. This means you do not have to add the parameter 'L' to launch the MOpt scheme. If you wish, provide a parameter '-L t' in the cmd can adjust the time when MOpt will enter the pacemaker fuzzing mode as aforementioned. Whether MOpt enters the pacemaker fuzzing mode has a great influence on the fuzzing performance in some cases as shown in our paper. 
-<br>'-L 1' may not be the best choice in the experiments but will be acceptable in most cases. I may provide several experiment results to show this situation. 
+<br>'-L 1' may not be the best choice  but will be acceptable in most cases. I may provide several experiment results to show this situation. 
 
 
 
