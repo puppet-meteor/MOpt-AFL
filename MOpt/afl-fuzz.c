@@ -11600,6 +11600,17 @@ int main(int argc, char** argv) {
   gettimeofday(&tv, &tz);
   srandom(tv.tv_sec ^ tv.tv_usec ^ getpid());
 
+
+  {    //default L
+      limit_time_sig = 1;
+      limit_time_puppet = 1;
+      u64 limit_time_puppet2 = limit_time_puppet * 60 * 1000;
+      if (limit_time_puppet2 < limit_time_puppet ) FATAL("limit_time overflow");
+      limit_time_puppet = limit_time_puppet2;
+      SAYF("default limit_time_puppet %llu\n",limit_time_puppet);
+  }
+
+
   while ((opt = getopt(argc, argv, "+i:o:f:m:t:V:T:L:dnCB:S:M:x:Q")) > 0)
 
     switch (opt) {
@@ -11778,7 +11789,7 @@ break;
 
         case 'L': { /* MOpt mode */
 
-        if (limit_time_sig)  FATAL("Multiple -L options not supported");
+            //if (limit_time_sig)  FATAL("Multiple -L options not supported");
             limit_time_sig = 1;
 
 			if (sscanf(optarg, "%llu", &limit_time_puppet) < 1 ||
@@ -11790,84 +11801,10 @@ break;
 				limit_time_puppet = limit_time_puppet2;
 
 			SAYF("limit_time_puppet %llu\n",limit_time_puppet);
-			swarm_now = 0;
 
 			if (limit_time_puppet == 0 )
 			    key_puppet = 1;
 
-			int i;
-			int tmp_swarm = 0;
-
-			if (g_now > g_max) g_now = 0;
-				w_now = (w_init - w_end)*(g_max - g_now) / (g_max)+w_end;
-
-			for (tmp_swarm = 0; tmp_swarm < swarm_num; tmp_swarm++)
-			{
-				double total_puppet_temp = 0.0;
-				swarm_fitness[tmp_swarm] = 0.0;
-
-				for (i = 0; i < operator_num; i++)
-				{
-					stage_finds_puppet[tmp_swarm][i] = 0;
-					probability_now[tmp_swarm][i] = 0.0;
-					x_now[tmp_swarm][i] = ((double)(random() % 7000)*0.0001 + 0.1);
-					total_puppet_temp += x_now[tmp_swarm][i];
-					v_now[tmp_swarm][i] = 0.1;
-					L_best[tmp_swarm][i] = 0.5;
-					G_best[i] = 0.5;
-					eff_best[tmp_swarm][i] = 0.0;
-
-				}
-				
-
-				for (i = 0; i < operator_num; i++) {
-					stage_cycles_puppet_v2[tmp_swarm][i] = stage_cycles_puppet[tmp_swarm][i];
-					stage_finds_puppet_v2[tmp_swarm][i] = stage_finds_puppet[tmp_swarm][i];
-					x_now[tmp_swarm][i] = x_now[tmp_swarm][i] / total_puppet_temp;
-				}
-
-				double x_temp = 0.0;
-
-				for (i = 0; i < operator_num; i++)
-				{
-					probability_now[tmp_swarm][i] = 0.0;
-					v_now[tmp_swarm][i] = w_now * v_now[tmp_swarm][i] + RAND_C * (L_best[tmp_swarm][i] - x_now[tmp_swarm][i]) + RAND_C * (G_best[i] - x_now[tmp_swarm][i]);
-
-					x_now[tmp_swarm][i] += v_now[tmp_swarm][i];
-
-					if (x_now[tmp_swarm][i] > v_max)
-						x_now[tmp_swarm][i] = v_max;
-					else if (x_now[tmp_swarm][i] < v_min)
-						x_now[tmp_swarm][i] = v_min;
-
-					x_temp += x_now[tmp_swarm][i];
-				}
-
-				for (i = 0; i < operator_num; i++)
-				{
-					x_now[tmp_swarm][i] = x_now[tmp_swarm][i] / x_temp;
-					if (likely(i != 0))
-						probability_now[tmp_swarm][i] = probability_now[tmp_swarm][i - 1] + x_now[tmp_swarm][i];
-					else
-						probability_now[tmp_swarm][i] = x_now[tmp_swarm][i];
-				}
-				if (probability_now[tmp_swarm][operator_num - 1] < 0.99 || probability_now[tmp_swarm][operator_num - 1] > 1.01) 
-                                    FATAL("ERROR probability");
-
-
-
-
-
-			}
-			
-			for (i = 0; i < operator_num; i++)
-			{
-				core_operator_finds_puppet[i] = 0;
-				core_operator_finds_puppet_v2[i] = 0;
-				core_operator_cycles_puppet[i] = 0;
-				core_operator_cycles_puppet_v2[i] = 0;
-				core_operator_cycles_puppet_v3[i] = 0;
-			}
 
         }
         break;
@@ -11880,6 +11817,91 @@ break;
     }
 
   if (optind == argc || !in_dir || !out_dir) usage(argv[0]);
+
+
+
+
+                  {                //initialize swarms
+                        int i;
+                        int tmp_swarm = 0;
+                        swarm_now = 0;
+
+                        if (g_now > g_max) g_now = 0;
+                                w_now = (w_init - w_end)*(g_max - g_now) / (g_max)+w_end;
+
+                        for (tmp_swarm = 0; tmp_swarm < swarm_num; tmp_swarm++)
+                        {
+                                double total_puppet_temp = 0.0;
+                                swarm_fitness[tmp_swarm] = 0.0;
+
+                                for (i = 0; i < operator_num; i++)
+                                {
+                                        stage_finds_puppet[tmp_swarm][i] = 0;
+                                        probability_now[tmp_swarm][i] = 0.0;
+                                        x_now[tmp_swarm][i] = ((double)(random() % 7000)*0.0001 + 0.1);
+                                        total_puppet_temp += x_now[tmp_swarm][i];
+                                        v_now[tmp_swarm][i] = 0.1;
+                                        L_best[tmp_swarm][i] = 0.5;
+                                        G_best[i] = 0.5;
+                                        eff_best[tmp_swarm][i] = 0.0;
+
+                                }
+
+
+                                for (i = 0; i < operator_num; i++) {
+                                        stage_cycles_puppet_v2[tmp_swarm][i] = stage_cycles_puppet[tmp_swarm][i];
+                                        stage_finds_puppet_v2[tmp_swarm][i] = stage_finds_puppet[tmp_swarm][i];
+                                        x_now[tmp_swarm][i] = x_now[tmp_swarm][i] / total_puppet_temp;
+                                }
+
+                                double x_temp = 0.0;
+
+                                for (i = 0; i < operator_num; i++)
+                                {
+                                        probability_now[tmp_swarm][i] = 0.0;
+                                        v_now[tmp_swarm][i] = w_now * v_now[tmp_swarm][i] + RAND_C * (L_best[tmp_swarm][i] - x_now[tmp_swarm][i]) + RAND_C * (G_best[i] - x_now[tmp_swarm][i]);
+
+                                        x_now[tmp_swarm][i] += v_now[tmp_swarm][i];
+
+                                        if (x_now[tmp_swarm][i] > v_max)
+                                                x_now[tmp_swarm][i] = v_max;
+                                        else if (x_now[tmp_swarm][i] < v_min)
+                                                x_now[tmp_swarm][i] = v_min;
+
+                                        x_temp += x_now[tmp_swarm][i];
+                                }
+
+                                for (i = 0; i < operator_num; i++)
+                                {
+                                        x_now[tmp_swarm][i] = x_now[tmp_swarm][i] / x_temp;
+                                        if (likely(i != 0))
+                                                probability_now[tmp_swarm][i] = probability_now[tmp_swarm][i - 1] + x_now[tmp_swarm][i];
+                                        else
+                                                probability_now[tmp_swarm][i] = x_now[tmp_swarm][i];
+                                }
+                                if (probability_now[tmp_swarm][operator_num - 1] < 0.99 || probability_now[tmp_swarm][operator_num - 1] > 1.01)
+                                    FATAL("ERROR probability");
+
+
+
+
+
+                        }
+
+                        for (i = 0; i < operator_num; i++)
+                        {
+                                core_operator_finds_puppet[i] = 0;
+                                core_operator_finds_puppet_v2[i] = 0;
+                                core_operator_cycles_puppet[i] = 0;
+                                core_operator_cycles_puppet_v2[i] = 0;
+                                core_operator_cycles_puppet_v3[i] = 0;
+                        }
+
+                  }
+
+
+
+
 
   setup_signal_handlers();
   check_asan_opts();
