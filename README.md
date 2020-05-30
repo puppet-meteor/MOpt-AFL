@@ -16,19 +16,16 @@ MOpt_TechReport.pdf is the technical report of the paper "MOPT: Optimized Mutati
 
 ### 6. Parameter Introduction
 
-<del>Most important, you must add the parameter `-L` (e.g., `-L 0`) to launch the MOpt scheme. 
-</del>
-
+<del>Most important, you must add the parameter `-L` (e.g., `-L 0`) to launch the MOpt scheme. </del>
 
 <br>`-L` controls the time to move on to the pacemaker fuzzing mode.
 <br>`-L t:` when MOpt-AFL finishes the mutation of one input, if it has not discovered any new unique crash or path for more than t min, MOpt-AFL will enter the pacemaker fuzzing mode. 
 
 <br>Setting 0 will enter the pacemaker fuzzing mode at first, which is recommended in a short time-scale evaluation. 
-<del><br>For instance, it may take three or four days for MOpt-AFL to enter the pacemaker fuzzing mode when `-L 30`. 
-</del>
+<del><br>For instance, it may take three or four days for MOpt-AFL to enter the pacemaker fuzzing mode when `-L 30`. </del>
 
-
-Hey guys, I realize that most experiments may last no longer than 24 hours. You may have trouble selecting a suitable value of 'L' without testing. So I modify the code in order to employ '-L 1' as the default setting. This means you do not have to add the parameter 'L' to launch the MOpt scheme. If you wish, provide a parameter '-L t' in the cmd can adjust the time when MOpt will enter the pacemaker fuzzing mode as aforementioned. Whether MOpt enters the pacemaker fuzzing mode has a great influence on the fuzzing performance in some cases as shown in our paper. '-L 1' may not be the best choice in the experiments but will be acceptable in most cases. 
+Hey guys, I realize that most experiments may last no longer than 24 hours. You may have trouble selecting a suitable value of 'L' without testing. So I modify the code in order to employ '-L 1' as the default setting. This means you do not have to add the parameter 'L' to launch the MOpt scheme. If you wish, provide a parameter '-L t' in the cmd can adjust the time when MOpt will enter the pacemaker fuzzing mode as aforementioned. Whether MOpt enters the pacemaker fuzzing mode has a great influence on the fuzzing performance in some cases as shown in our paper. 
+<br>'-L 1' may not be the best choice in the experiments but will be acceptable in most cases. I may provide several experiment results to show this situation. 
 
 
 
