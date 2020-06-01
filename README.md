@@ -28,6 +28,19 @@ Hey guys, I realize that most experiments may last no longer than 24 hours. You 
 <br>'-L 1' may not be the best choice  but will be acceptable in most cases. I may provide several experiment results to show this situation. 
 
 
+ 
+ ###### The unique paths found by different fuzzing settings in 24 hours. 
+
+ |Fuzzing setting |   infotocap @@ -o /dev/null | objdump -S @@  | sqlite3
+ |:----: | :-----: | :------: |  :------:
+ |MOpt -L 0  |  3629 | 5106 | 10498 
+ |MOpt -L 1  | 3983 | 5499 | 9975 
+ |MOpt -L 5  | 3772 | 2512 | 9332 
+ |MOpt -L 10  | 4062 | 4741 | 9465 
+ |MOpt -L 30  | 3162 | 1991 | 6337 
+ |AFL  | 1821 | 1099 | 4949 
+
+
 
 Other important parameters can be found in afl-fuzz.c, for instance, 
 <br>`swarm_num:` the number of the PSO swarms used in the fuzzing process.
