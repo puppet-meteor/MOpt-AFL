@@ -8351,7 +8351,7 @@ if(key_puppet == 1)
 
 						case 1:
 							if (temp_len < 2) break;
-							temp_len_puppet = UR(temp_len << 3);
+							temp_len_puppet = UR(temp_len << 3 - 1);
 							FLIP_BIT(out_buf, temp_len_puppet);
 							FLIP_BIT(out_buf, temp_len_puppet + 1);
 							stage_cycles_puppet_v2[swarm_now][STAGE_FLIP2] += 1;
@@ -8359,7 +8359,7 @@ if(key_puppet == 1)
 
 						case 2:
 							if (temp_len < 2) break;
-							temp_len_puppet = UR(temp_len << 3 - 2);
+							temp_len_puppet = UR(temp_len << 3 - 3);
 							FLIP_BIT(out_buf, temp_len_puppet);
 							FLIP_BIT(out_buf, temp_len_puppet + 1);
 							FLIP_BIT(out_buf, temp_len_puppet + 2);
@@ -10331,7 +10331,7 @@ if(key_puppet == 1)
 
 						case 1:
 							if (temp_len < 2) break;
-							temp_len_puppet = UR(temp_len << 3);
+							temp_len_puppet = UR(temp_len << 3 - 1);
 							FLIP_BIT(out_buf, temp_len_puppet);
 							FLIP_BIT(out_buf, temp_len_puppet + 1);
 							core_operator_cycles_puppet_v2[STAGE_FLIP2] += 1;
@@ -10339,7 +10339,7 @@ if(key_puppet == 1)
 
 						case 2:
 							if (temp_len < 2) break;
-							temp_len_puppet = UR(temp_len << 3 - 2);
+							temp_len_puppet = UR(temp_len << 3 - 3);
 							FLIP_BIT(out_buf, temp_len_puppet);
 							FLIP_BIT(out_buf, temp_len_puppet + 1);
 							FLIP_BIT(out_buf, temp_len_puppet + 2);
