@@ -98,7 +98,7 @@ double w_end = 0.3;
 double w_now;
 int g_now = 0;
 int g_max = 5000;
-#define operator_num 16
+#define operator_num 18
 #define swarm_num 5
 #define period_core  500000
 u64 tmp_core_time = 0;
@@ -134,6 +134,9 @@ double x_now[swarm_num][operator_num],
 #define STAGE_DELETEBYTE 13
 #define STAGE_Clone75 14
 #define STAGE_OverWrite75 15
+#define STAGE_OverWriteExtra 16
+#define STAGE_InsertExtra 17
+
 #define period_pilot 50000
  double period_pilot_tmp = 5000.0;
 
@@ -391,7 +394,7 @@ enum {
 
 
 
-int select_algorithm(void) {
+int select_algorithm(int extras) {
 
   int i_puppet, j_puppet;
   //double total_puppet = 0.0;
@@ -403,10 +406,15 @@ int select_algorithm(void) {
 
     srandom(seed[0]);
 
-  double sele = ((double)(random()%10000)*0.0001);
+  //double sele = ((double)(random()%10000)*0.0001);
   //SAYF("select : %f\n",sele);
   j_puppet = 0;
-  for (i_puppet = 0; i_puppet < operator_num; i_puppet++)
+  int operator_number = operator_num;
+  if (extras == 0) operator_number = operator_number - 2;
+  double range_sele = (double)probability_now[swarm_now][operator_number - 1];
+  double sele = ((double)(random() % 10000) * 0.0001 * range_sele);
+
+  for (i_puppet = 0; i_puppet < operator_number; i_puppet++)
   {
       if (unlikely(i_puppet == 0))
       {
@@ -422,7 +430,7 @@ int select_algorithm(void) {
           }
       }
   }
-  if (j_puppet ==1 && sele < probability_now[swarm_now][i_puppet-1])
+  if ((j_puppet ==1 && sele < probability_now[swarm_now][i_puppet-1]) || (i_puppet + 1 < operator_num && sele > probability_now[swarm_now][i_puppet +  1]))
     FATAL("error select_algorithm");
   return i_puppet;
 }
@@ -8058,7 +8066,6 @@ static u8 pilot_fuzzing(char** argv) {
 
 	
 
-
 		stage_cur_byte = -1;
 
 		/* The havoc stage mutation code is also invoked when splicing files; if the
@@ -8155,7 +8162,7 @@ static u8 pilot_fuzzing(char** argv) {
 
 					for (i = 0; i < use_stacking; i++) {
 
-						switch (select_algorithm()) {
+						switch (select_algorithm( extras_cnt + a_extras_cnt )) {
 
 						case 0:
 							/* Flip a single bit somewhere. Spooky! */
@@ -8418,6 +8425,99 @@ static u8 pilot_fuzzing(char** argv) {
 						}
 
 
+                                                /* Values 16 and 17 can be selected only if there are any extras
+                                                   present in the dictionaries. */
+
+                                                case 16: {
+
+                                                        /* Overwrite bytes with an extra. */
+
+                                                        if (!extras_cnt || (a_extras_cnt && UR(2))) {
+
+                                                       /* No user-specified extras or odds in our favor. Let's use an
+                                                         auto-detected one. */
+
+                                                       u32 use_extra = UR(a_extras_cnt);
+                                                       u32 extra_len = a_extras[use_extra].len;
+                                                       u32 insert_at;
+
+                                                       if (extra_len > temp_len) break;
+
+                                                       insert_at = UR(temp_len - extra_len + 1);
+                                                       memcpy(out_buf + insert_at, a_extras[use_extra].data, extra_len);
+
+                                                       } else {
+
+                                                       /* No auto extras or odds in our favor. Use the dictionary. */
+
+                                                       u32 use_extra = UR(extras_cnt);
+                                                       u32 extra_len = extras[use_extra].len;
+                                                       u32 insert_at;
+
+                                                       if (extra_len > temp_len) break;
+
+                                                       insert_at = UR(temp_len - extra_len + 1);
+                                                       memcpy(out_buf + insert_at, extras[use_extra].data, extra_len);
+
+                                                       }
+                                                       stage_cycles_puppet_v2[swarm_now][STAGE_OverWriteExtra] += 1;
+
+                                                       break;
+
+                                                 }
+
+                                              case 17: {
+
+                                                       u32 use_extra, extra_len, insert_at = UR(temp_len + 1);
+                                                       u8* new_buf;
+
+                                                       /* Insert an extra. Do the same dice-rolling stuff as for the
+                                                         previous case. */
+
+                                                       if (!extras_cnt || (a_extras_cnt && UR(2))) {
+
+                                                       use_extra = UR(a_extras_cnt);
+                                                       extra_len = a_extras[use_extra].len;
+
+                                                       if (temp_len + extra_len >= MAX_FILE) break;
+
+                                                       new_buf = ck_alloc_nozero(temp_len + extra_len);
+
+                                                       /* Head */
+                                                       memcpy(new_buf, out_buf, insert_at);
+
+                                                       /* Inserted part */
+                                                       memcpy(new_buf + insert_at, a_extras[use_extra].data, extra_len);
+
+                                                       } else {
+
+                                                       use_extra = UR(extras_cnt);
+                                                       extra_len = extras[use_extra].len;
+
+                                                       if (temp_len + extra_len >= MAX_FILE) break;
+
+                                                       new_buf = ck_alloc_nozero(temp_len + extra_len);
+
+                                                       /* Head */
+                                                       memcpy(new_buf, out_buf, insert_at);
+
+                                                       /* Inserted part */
+                                                       memcpy(new_buf + insert_at, extras[use_extra].data, extra_len);
+
+                                                       }
+
+                                                       /* Tail */
+                                                       memcpy(new_buf + insert_at + extra_len, out_buf + insert_at,
+                                                       temp_len - insert_at);
+
+                                                       ck_free(out_buf);
+                                                       out_buf   = new_buf;
+                                                       temp_len += extra_len;
+                                                       stage_cycles_puppet_v2[swarm_now][STAGE_InsertExtra] += 1;
+                                                       break;
+
+                                                 }
+
 						}
 
 					}
@@ -8461,7 +8561,7 @@ static u8 pilot_fuzzing(char** argv) {
 					{
 						u64 temp_temp_puppet = queued_paths + unique_crashes - temp_total_found;
 						total_puppet_find = total_puppet_find + temp_temp_puppet;
-						for (i = 0; i < 16; i++)
+						for (i = 0; i < operator_num; i++)
 						{
 							if (stage_cycles_puppet_v2[swarm_now][i] > stage_cycles_puppet_v3[swarm_now][i])
 								stage_finds_puppet_v2[swarm_now][i] += temp_temp_puppet;
@@ -9854,8 +9954,6 @@ static u8 core_fuzzing(char** argv) {
 
 
 
-
-
 		stage_cur_byte = -1;
 
 		/* The havoc stage mutation code is also invoked when splicing files; if the
@@ -9953,7 +10051,7 @@ static u8 core_fuzzing(char** argv) {
 
 					for (i = 0; i < use_stacking; i++) {
 
-						switch (select_algorithm()) {
+						switch (select_algorithm( extras_cnt + a_extras_cnt )) {
 
 						case 0:
 							/* Flip a single bit somewhere. Spooky! */
@@ -10215,6 +10313,99 @@ static u8 core_fuzzing(char** argv) {
 						}
 
 
+                                                /* Values 16 and 17 can be selected only if there are any extras
+                                                   present in the dictionaries. */
+
+                                              case 16: {
+
+                                                       /* Overwrite bytes with an extra. */
+
+                                                       if (!extras_cnt || (a_extras_cnt && UR(2))) {
+
+                                                       /* No user-specified extras or odds in our favor. Let's use an
+                                                          auto-detected one. */
+
+                                                       u32 use_extra = UR(a_extras_cnt);
+                                                       u32 extra_len = a_extras[use_extra].len;
+                                                       u32 insert_at;
+
+                                                       if (extra_len > temp_len) break;
+
+                                                       insert_at = UR(temp_len - extra_len + 1);
+                                                       memcpy(out_buf + insert_at, a_extras[use_extra].data, extra_len);
+
+                                                       } else {
+
+                                                       /* No auto extras or odds in our favor. Use the dictionary. */
+
+                                                       u32 use_extra = UR(extras_cnt);
+                                                       u32 extra_len = extras[use_extra].len;
+                                                       u32 insert_at;
+
+                                                       if (extra_len > temp_len) break;
+
+                                                       insert_at = UR(temp_len - extra_len + 1);
+                                                       memcpy(out_buf + insert_at, extras[use_extra].data, extra_len);
+
+                                                       }
+                                                       stage_cycles_puppet_v2[swarm_now][STAGE_OverWriteExtra] += 1;
+
+                                                       break;
+
+                                               }
+
+                                            case 17: {
+
+                                                       u32 use_extra, extra_len, insert_at = UR(temp_len + 1);
+                                                       u8* new_buf;
+
+                                                       /* Insert an extra. Do the same dice-rolling stuff as for the
+                                                          previous case. */
+
+                                                      if (!extras_cnt || (a_extras_cnt && UR(2))) {
+
+                                                      use_extra = UR(a_extras_cnt);
+                                                      extra_len = a_extras[use_extra].len;
+
+                                                      if (temp_len + extra_len >= MAX_FILE) break;
+
+                                                      new_buf = ck_alloc_nozero(temp_len + extra_len);
+
+                                                      /* Head */
+                                                      memcpy(new_buf, out_buf, insert_at);
+
+                                                      /* Inserted part */
+                                                      memcpy(new_buf + insert_at, a_extras[use_extra].data, extra_len);
+
+                                                      } else {
+
+                                                      use_extra = UR(extras_cnt);
+                                                      extra_len = extras[use_extra].len;
+
+                                                      if (temp_len + extra_len >= MAX_FILE) break;
+
+                                                      new_buf = ck_alloc_nozero(temp_len + extra_len);
+
+                                                      /* Head */
+                                                      memcpy(new_buf, out_buf, insert_at);
+
+                                                      /* Inserted part */
+                                                      memcpy(new_buf + insert_at, extras[use_extra].data, extra_len);
+
+                                                      }
+
+                                                      /* Tail */
+                                                      memcpy(new_buf + insert_at + extra_len, out_buf + insert_at,
+                                                      temp_len - insert_at);
+
+                                                      ck_free(out_buf);
+                                                      out_buf   = new_buf;
+                                                      temp_len += extra_len;
+                                                      stage_cycles_puppet_v2[swarm_now][STAGE_InsertExtra] += 1;
+                                                      break;
+                                                 }
+
+
 						}
 
 					}
@@ -10258,7 +10449,7 @@ static u8 core_fuzzing(char** argv) {
 					{
 						u64 temp_temp_puppet = queued_paths + unique_crashes - temp_total_found;
 						total_puppet_find = total_puppet_find + temp_temp_puppet;
-						for (i = 0; i < 16; i++)
+						for (i = 0; i < operator_num; i++)
 						{
 							if (core_operator_cycles_puppet_v2[i] > core_operator_cycles_puppet_v3[i])
 								core_operator_finds_puppet_v2[i] += temp_temp_puppet;
