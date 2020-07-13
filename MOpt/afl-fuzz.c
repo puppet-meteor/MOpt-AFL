@@ -8671,11 +8671,11 @@ static u8 pilot_fuzzing(char** argv) {
 				/* Update pending_not_fuzzed count if we made it through the calibration
 				   cycle and have not seen this entry before. */
 
-				   // if (!stop_soon && !queue_cur->cal_failed && !queue_cur->was_fuzzed) {
-				   //   queue_cur->was_fuzzed = 1;
-				   //   pending_not_fuzzed--;
-				   //   if (queue_cur->favored) pending_favored--;
-				   // }
+				    if (!stop_soon && !queue_cur->cal_failed && !queue_cur->was_fuzzed) {
+				      queue_cur->was_fuzzed = 1;
+				      pending_not_fuzzed--;
+				      if (queue_cur->favored) pending_favored--;
+				    }
 
 				munmap(orig_in, queue_cur->len);
 
@@ -10560,6 +10560,15 @@ static u8 core_fuzzing(char** argv) {
 
 				splicing_with = -1;
 
+				/* Update pending_not_fuzzed count if we made it through the calibration
+				   cycle and have not seen this entry before. */
+
+				    if (!stop_soon && !queue_cur->cal_failed && !queue_cur->was_fuzzed) {
+				      queue_cur->was_fuzzed = 1;
+				      pending_not_fuzzed--;
+				      if (queue_cur->favored) pending_favored--;
+				    }
+				
 
 				munmap(orig_in, queue_cur->len);
 
