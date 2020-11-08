@@ -410,7 +410,7 @@ int select_algorithm(int extras) {
   //SAYF("select : %f\n",sele);
   j_puppet = 0;
   int operator_number = operator_num;
-  if (extras == 0) operator_number = operator_number - 2;
+  if (extras < 2) operator_number = operator_number - 2;
   double range_sele = (double)probability_now[swarm_now][operator_number - 1];
   double sele = ((double)(random() % 10000) * 0.0001 * range_sele);
 
