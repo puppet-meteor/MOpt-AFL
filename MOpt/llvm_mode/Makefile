@@ -7,7 +7,7 @@
 #
 # LLVM integration design comes from Laszlo Szekeres.
 #
-# Copyright 2015, 2016 Google Inc. All rights reserved.
+# Copyright 2015, 2016 Google LLC All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ LLVM_CONFIG ?= llvm-config
 CFLAGS      ?= -O3 -funroll-loops
 CFLAGS      += -Wall -D_FORTIFY_SOURCE=2 -g -Wno-pointer-sign \
                -DAFL_PATH=\"$(HELPER_PATH)\" -DBIN_PATH=\"$(BIN_PATH)\" \
-               -DVERSION=\"$(VERSION)\"
+               -DVERSION=\"$(VERSION)\" 
 ifdef AFL_TRACE_PC
   CFLAGS    += -DUSE_TRACE_PC=1
 endif
@@ -36,7 +36,8 @@ CXXFLAGS    ?= -O3 -funroll-loops
 CXXFLAGS    += -Wall -D_FORTIFY_SOURCE=2 -g -Wno-pointer-sign \
                -DVERSION=\"$(VERSION)\" -Wno-variadic-macros
 
-CLANG_CFL    = `$(LLVM_CONFIG) --cxxflags` -fno-rtti -fpic $(CXXFLAGS)
+# Mark nodelete to work around unload bug in upstream LLVM 5.0+
+CLANG_CFL    = `$(LLVM_CONFIG) --cxxflags` -Wl,-znodelete -fno-rtti -fpic $(CXXFLAGS)
 CLANG_LFL    = `$(LLVM_CONFIG) --ldflags` $(LDFLAGS)
 
 # User teor2345 reports that this is required to make things work on MacOS X.
@@ -60,7 +61,7 @@ else
   PROGS      = ../afl-clang-fast ../afl-llvm-rt.o ../afl-llvm-rt-32.o ../afl-llvm-rt-64.o
 endif
 
-all: test_deps $(PROGS) test_build all_done
+all: test_deps $(PROGS) all_done
 
 test_deps:
 ifndef AFL_TRACE_PC
@@ -93,22 +94,13 @@ endif
 	@printf "[*] Building 64-bit variant of the runtime (-m64)... "
 	@$(CC) $(CFLAGS) -m64 -fPIC -c $< -o $@ 2>/dev/null; if [ "$$?" = "0" ]; then echo "success!"; else echo "failed (that's fine)"; fi
 
-test_build: $(PROGS)
-	@echo "[*] Testing the CC wrapper and instrumentation output..."
-	unset AFL_USE_ASAN AFL_USE_MSAN AFL_INST_RATIO; AFL_QUIET=1 AFL_PATH=. AFL_CC=$(CC) ../afl-clang-fast $(CFLAGS) ../test-instr.c -o test-instr $(LDFLAGS)
-# Use /dev/null to avoid problems with optimization messing up expected
-# branches. See https://github.com/google/AFL/issues/30.
-	../afl-showmap -m none -q -o .test-instr0 ./test-instr < /dev/null
-	echo 1 | ../afl-showmap -m none -q -o .test-instr1 ./test-instr
-	@rm -f test-instr
-	@cmp -s .test-instr0 .test-instr1; DR="$$?"; rm -f .test-instr0 .test-instr1; if [ "$$DR" = "0" ]; then echo; echo "Oops, the instrumentation does not seem to be behaving correctly!"; echo; echo "Please ping <lcamtuf@google.com> to troubleshoot the issue."; echo; exit 1; fi
-	@echo "[+] All right, the instrumentation seems to be working!"
 
-all_done: test_build
+
+all_done:
 	@echo "[+] All done! You can now use '../afl-clang-fast' to compile programs."
 
 .NOTPARALLEL: clean
 
 clean:
-	rm -f *.o *.so *~ a.out core core.[1-9][0-9]* test-instr .test-instr0 .test-instr1
+	rm -f *.o *.so *~ a.out core core.[1-9][0-9]* test-instr .test-instr0 .test-instr1 
 	rm -f $(PROGS) ../afl-clang-fast++
