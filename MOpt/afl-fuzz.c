@@ -10348,7 +10348,7 @@ static u8 core_fuzzing(char** argv) {
                                                        memcpy(out_buf + insert_at, extras[use_extra].data, extra_len);
 
                                                        }
-                                                       stage_cycles_puppet_v2[swarm_now][STAGE_OverWriteExtra] += 1;
+                                                       core_operator_cycles_puppet_v2[swarm_now][STAGE_OverWriteExtra] += 1;
 
                                                        break;
 
@@ -10401,7 +10401,7 @@ static u8 core_fuzzing(char** argv) {
                                                       ck_free(out_buf);
                                                       out_buf   = new_buf;
                                                       temp_len += extra_len;
-                                                      stage_cycles_puppet_v2[swarm_now][STAGE_InsertExtra] += 1;
+                                                      core_operator_cycles_puppet_v2[swarm_now][STAGE_InsertExtra] += 1;
                                                       break;
                                                  }
 
